@@ -337,7 +337,7 @@ def run_vaxpress():
         winddown_trigger=args.winddown_trigger,
         winddown_rate=args.winddown_rate,
         has_crossover = args.has_crossover,
-        frequency_crossover = args.frequency_crossover,
+        freq_crossover = args.frequency_crossover,
         crossover_prob = args.crossover_prob,
         crossover_method = args.crossover_method,
         output=args.output,
