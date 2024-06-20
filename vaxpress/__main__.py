@@ -262,7 +262,7 @@ def parse_options(scoring_funcs, preset, default_off):
     grp.add_argument('--frequency-crossover', type = float, default=0.5, metavar='FREQ',
                      help='frequency of crossover when generating mutant sequences '
                           '(default: 0.5)')
-    grp.add_argument('--crossover-prob', type = float, default = 0.25, METAVAR = 'PROB',
+    grp.add_argument('--crossover-prob', type = float, default = 0.25, metavar = 'PROB',
                      help = 'probability of bases being swapped when crossovre occurs'
                      '(must not exceed 0.5) (default: 0.25)')
     grp.add_argument('--crossover-method', type = str , default = 'single', metavar = 'METHOD',
