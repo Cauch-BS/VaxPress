@@ -214,7 +214,7 @@ class CDSEvolutionChamber:
         n_nextgeneration = max(0, self.execopts.n_population - len(self.population))
 
         #population of the next generation generated through crossover
-        n_withcrossover = 2 * (n_nextgeneration * self.freq_crossover // 2) 
+        n_withcrossover = int(2 * (n_nextgeneration * self.freq_crossover // 2))
 
         last_crossover = 0
 
