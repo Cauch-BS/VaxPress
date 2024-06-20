@@ -128,7 +128,7 @@ class CDSEvolutionChamber:
         #this is the probability with which bases are exchanged if crossover is performed 
         self.crossover_prob = self.execopts.crossover_prob if self.has_crossover else 0 
         self.crossover_method = self.execopts.crossover_method if self.has_crossover else None
-        if self.crossover_method not in ('single', 'two', 'binomial', None):
+        if self.crossover_method not in ('single', 'double', 'uniform', None):
             raise ValueError('Invalid crossover method')
         self.full_scan_interval = self.execopts.full_scan_interval
         self.in_final_full_scan = False
@@ -227,11 +227,11 @@ class CDSEvolutionChamber:
             spouse = self.population[spouse_no]
 
             crossover = BinaryCrossOver(parent, spouse)
-            if self.crossover_method == 'single_point':
+            if self.crossover_method == 'single':
                 children = crossover.single_point_crossover(self.crossover_prob)
-            elif self.crossover_method == 'two_point':
+            elif self.crossover_method == 'double':
                 children = crossover.two_point_crossover(self.crossover_prob)
-            elif self.crossover_method == 'binomial':
+            elif self.crossover_method == 'uniform':
                 children = crossover.binomial_crossover(self.crossover_prob)
             for child, num in zip(children, (parent_no, spouse_no)):
                 child = self.mutantgen.generate_mutant(child, self.mutation_rate) #child is mutated 
