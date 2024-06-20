@@ -28,27 +28,21 @@ from collections import namedtuple
 import pandas as pd
 import numpy as np
 from . import lineardesign
+from .sequence import Sequence
+from typing import Union
 
 STOP = '*'
 MutationChoice = namedtuple('MutationChoice', ['pos', 'altcodon'])
 
-class MutantGenerator:
+class MutantGenerator(Sequence):
 
     cdsseq = None
     initial_codons = None
 
-    def __init__(self, cdsseq: str, random_state: np.random.RandomState,
+    def __init__(self, cdsseq: Union[str, list], random_state: np.random.RandomState,
                  codon_table: str='standard', is_protein: bool=False,
                  boost_loop_mutations: str=None):
-        self.initialize_codon_table(codon_table)
-
-        if is_protein:
-            self.cdsseq = self.backtranslate(cdsseq)
-        else:
-            self.cdsseq = cdsseq
-        if len(self.cdsseq) % 3 != 0:
-            raise ValueError('Invalid CDS sequence length')
-
+        super().__init__(cdsseq, codon_table, is_protein)
         self.rand = np.random if random_state is None else random_state
 
         if boost_loop_mutations is not None:
@@ -58,35 +52,8 @@ class MutantGenerator:
         else:
             self.boost_loop_mutations_weight = 0
 
+        self.initial_codons = self.codons[:]
         self.setup_choices()
-
-    def initialize_codon_table(self, codon_table: str) -> None:
-        table_var_name = f'{codon_table}_rna_table'
-        if not hasattr(CodonTable, table_var_name):
-            raise ValueError(f'Invalid codon table name: {codon_table}')
-
-        self.codon_table = getattr(CodonTable, table_var_name)
-
-        tbl = pd.DataFrame(
-            list(self.codon_table.forward_table.items()) +
-            [[stopcodon, STOP] for stopcodon in self.codon_table.stop_codons],
-            columns=['codon', 'aa'])
-
-        # Build synonymous codon lookup table
-        self.synonymous_codons, self.aa2codons, self.codon2aa = {}, {}, {}
-        for aa, codons in tbl.groupby('aa'):
-            codons = set(codons['codon'])
-            self.aa2codons[aa] = codons
-            for c in codons:
-                self.synonymous_codons[c] = sorted(codons - set([c]))
-                self.codon2aa[c] = aa
-
-    def backtranslate(self, proteinseq: str) -> str:
-        return ''.join(next(iter(self.aa2codons[aa])) for aa in proteinseq)
-
-    def translate(self, rnaseq: str) -> str:
-        return ''.join(self.codon2aa[rnaseq[i:i+3]]
-                       for i in range(0, len(rnaseq), 3))
 
     def setup_choices(self) -> None:
         choices = []
