@@ -38,7 +38,7 @@ from .crossover import BinaryCrossOver
 from .presets import dump_to_preset
 from .log import hbar, hbar_double, log
 from . import __version__
-from typing import Generator, Dict, Any
+from typing import Iterator, Dict, Any
 
 PROTEIN_ALPHABETS = 'ACDEFGHIKLMNPQRSTVWY' + STOP
 RNA_ALPHABETS = 'ACGU'
@@ -276,7 +276,7 @@ class CDSEvolutionChamber:
         self.population_sources[:] = nextgen_sources
         self.flatten_seqs = [''.join(p) for p in self.population]
 
-    def run(self):
+    def run(self) -> Iterator[Dict[Any]]:
         self.show_configuration()
 
         timelogs = [time.time()]
