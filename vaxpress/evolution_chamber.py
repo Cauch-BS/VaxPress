@@ -276,7 +276,7 @@ class CDSEvolutionChamber:
         self.population_sources[:] = nextgen_sources
         self.flatten_seqs = [''.join(p) for p in self.population]
 
-    def run(self) -> Generator[Dict[str, Any]]:
+    def run(self) -> Generator[Dict[str, Any], None, None]:
         self.show_configuration()
 
         timelogs = [time.time()]
