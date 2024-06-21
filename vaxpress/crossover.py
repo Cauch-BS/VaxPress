@@ -18,7 +18,7 @@ class BinaryCrossOver:
         self.child1, self.child2 = self.sequence1[:], self.sequence2[:]
         pos_crossover = max(1, min(np.random.binomial(self.length, crossover_prob), self.length - 1))
         #troubleshooting code
-        print(f"Crossver position: {pos_crossover}")
+        #print(f"Crossver position: {pos_crossover}")
         for i in range(pos_crossover):
             self.child1[i], self.child2[i] = self.sequence2[i], self.sequence1[i]
         return self.child1, self.child2
@@ -41,7 +41,7 @@ class BinaryCrossOver:
                 else:
                     raise ValueError("Invalid start and end points")
         #troubleshooting code
-        print(f"Crossver position: {start} and {end}")
+        #print(f"Crossver position: {start} and {end}")
         for i in range(start, end):
             self.child1[i], self.child2[i] = self.sequence2[i], self.sequence1[i]
 
@@ -55,7 +55,7 @@ class BinaryCrossOver:
 
         crossover_choices = np.random.choice(self.length, n_crossover, replace = False)
         #troubleshooting code
-        print(f"Crossver positions: {crossover_choices}")
+        #print(f"Crossver positions: {crossover_choices}")
         for i in crossover_choices:
             self.child1[i], self.child2[i] = self.sequence2[i], self.sequence1[i]
 
