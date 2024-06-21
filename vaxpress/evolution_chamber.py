@@ -38,6 +38,7 @@ from .crossover import BinaryCrossOver
 from .presets import dump_to_preset
 from .log import hbar, hbar_double, log
 from . import __version__
+from typing import Generator, Dict, Any
 
 PROTEIN_ALPHABETS = 'ACDEFGHIKLMNPQRSTVWY' + STOP
 RNA_ALPHABETS = 'ACGU'
@@ -234,8 +235,8 @@ class CDSEvolutionChamber:
             elif self.crossover_method == 'uniform':
                 children = crossover.binomial_crossover(self.crossover_prob)
             for child, num in zip(children, (parent_no, spouse_no)):
-                child = self.mutantgen.generate_mutant(child, self.mutation_rate) #child is mutated 
-                nextgeneration.append(child)
+                new_child = self.mutantgen.generate_mutant(child, self.mutation_rate) #child is mutated 
+                nextgeneration.append(new_child)
                 sources.append(num)
             
             last_crossover = spouse_no
@@ -245,6 +246,7 @@ class CDSEvolutionChamber:
                           list(range(last_crossover))), 
                     range(n_withcrossover, n_nextgeneration)
                     ):
+            
             parent, parent_folding = self.population[parent_no], self.population_foldings[parent_no]
             child = self.mutantgen.generate_mutant(parent, self.mutation_rate,
                                                    choices, parent_folding)
@@ -274,7 +276,7 @@ class CDSEvolutionChamber:
         self.population_sources[:] = nextgen_sources
         self.flatten_seqs = [''.join(p) for p in self.population]
 
-    def run(self): #as generator
+    def run(self) -> Generator[Dict[str, Any]]:
         self.show_configuration()
 
         timelogs = [time.time()]

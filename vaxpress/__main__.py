@@ -226,6 +226,7 @@ def parse_options(scoring_funcs, preset, default_off):
                           '(default: vienna)')
     grp.add_argument('--default-off', default=False, action='store_true',
                      help='turn all fitness functions off by default')
+    
     grp = parser.add_argument_group('Optimization Options')
     grp.add_argument('--random-initialization', action='store_true',
                      default=False, help='randomize all codons at the beginning')
