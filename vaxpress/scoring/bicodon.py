@@ -25,6 +25,7 @@
 
 from . import ScoringFunction
 from ..data import bicodon_usage_data
+from ..sequence import Sequence
 import numpy as np
 from itertools import product
 
@@ -60,6 +61,9 @@ class BicodonAdaptationIndexFitness(ScoringFunction):
         assert len(self.bicodon_scores) == 4096
 
     def score(self, seqs):
+        seqs = Sequence(seqs).cdsseq
+        #TROUBLESHOOTING
+        print(f"Evaluating Bicodon Adaptation of sequence starting from {seqs[0:5]}")
         if len(seqs[0]) < 6:
             return [0.0] * len(seqs)
 

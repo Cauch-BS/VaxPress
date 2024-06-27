@@ -55,6 +55,8 @@ class StartCodonStructureFitness(ScoringFunction):
         metrics = []
         scores = []
         start_at = len(Sequence(seqs, is_cds = False)._5utr)
+        #TROUBLESHOOTING
+        print(f"Running start_str score from index {start_at} of sequence.")
 
         for fold in foldings:
             start_structure = fold['folding'][start_at:(start_at + self.width)]
