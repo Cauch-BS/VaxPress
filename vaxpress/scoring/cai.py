@@ -25,6 +25,7 @@
 
 from . import ScoringFunction
 from ..data import codon_usage_data
+from ..sequence import Sequence
 import numpy as np
 
 class CodonAdaptationIndexFitness(ScoringFunction):
@@ -64,6 +65,7 @@ class CodonAdaptationIndexFitness(ScoringFunction):
 
     def score(self, seqs):
         scores = self.codon_scores
+        seqs = Sequence(seqs).cdsseq
         cai = np.array([
             np.mean([scores[seq[i:i+3]] for i in range(0, len(seq), 3)])
             for seq in seqs])
@@ -73,6 +75,7 @@ class CodonAdaptationIndexFitness(ScoringFunction):
 
     def evaluate_local(self, seq):
         scores = self.codon_scores
+        seqs = Sequence(seqs).cdsseq
         cai = np.array([scores[seq[i:i+3]] for i in range(0, len(seq), 3)])
         centers = np.arange(0, len(seq), 3) + 1
         return {'cai': (centers, cai)}

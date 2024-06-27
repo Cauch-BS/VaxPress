@@ -40,9 +40,9 @@ class MutantGenerator(Sequence):
     initial_codons = None
 
     def __init__(self, cdsseq: Union[str, list], random_state: np.random.RandomState,
-                 codon_table: str='standard', is_protein: bool=False,
+                 codon_table: str='standard', is_protein: bool=False, is_cds=True,
                  boost_loop_mutations: str=None):
-        super().__init__(cdsseq, codon_table, is_protein)
+        super().__init__(cdsseq, codon_table, is_protein, is_cds)
         self.rand = np.random if random_state is None else random_state
 
         if boost_loop_mutations is not None:

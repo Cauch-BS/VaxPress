@@ -33,6 +33,7 @@ from collections import namedtuple
 from concurrent import futures
 from itertools import cycle
 from .mutant_generator import MutantGenerator, STOP
+from .sequence import Sequence
 from .sequence_evaluator import SequenceEvaluator
 from .crossover import BinaryCrossOver
 from .presets import dump_to_preset
@@ -50,7 +51,7 @@ ExecutionOptions = namedtuple('ExecutionOptions', [
     'output', 'command_line', 'overwrite',
     'seed', 'processes', 'random_initialization', 'conservative_start',
     'boost_loop_mutations', 'full_scan_interval', 'species', 'codon_table',
-    'protein', 'quiet', 'seq_description', 'print_top_mutants', 'addons',
+    'protein', 'cds', 'quiet', 'seq_description', 'print_top_mutants', 'addons',
     'lineardesign_dir', 'lineardesign_lambda', 'lineardesign_omit_start',
     'folding_engine'
 ])
@@ -66,8 +67,7 @@ class CDSEvolutionChamber:
 
     def __init__(self, cdsseq: str, scoring_funcs: dict,
                  scoring_options: dict, exec_options: ExecutionOptions):
-        self.cdsseq = cdsseq.upper()
-
+        self.cdsseq = Sequence(cdsseq.upper()).cdsseq
         self.seq_description = exec_options.seq_description
         self.outputdir = exec_options.output
         self.scoringfuncs = scoring_funcs
@@ -103,6 +103,7 @@ class CDSEvolutionChamber:
         self.mutantgen = MutantGenerator(self.cdsseq, self.rand,
                                          self.execopts.codon_table,
                                          self.execopts.protein,
+                                         self.execopts.cds,
                                          self.execopts.boost_loop_mutations)
         if self.execopts.lineardesign_lambda is not None:
             log.info('==> Initializing sequence with LinearDesign...')

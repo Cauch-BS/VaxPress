@@ -199,6 +199,8 @@ def parse_options(scoring_funcs, preset, default_off):
                      help='input fasta file containing the CDS sequence')
     grp.add_argument('--protein', default=False, action='store_true',
                      help='input is a protein sequence')
+    grp.add_argument('--cds', default=False, action='store_true',
+                     help='input is a CDS sequence')
     grp.add_argument('-o', '--output', required=True, metavar='DIR',
                      help='output directory')
     grp.add_argument('--overwrite', action='store_true',
@@ -356,6 +358,7 @@ def run_vaxpress():
         seq_description=seqdescr,
         print_top_mutants=args.print_top,
         protein=args.protein,
+        cds = args.cds,
         addons=addon_paths,
         lineardesign_dir=args.lineardesign_dir,
         lineardesign_lambda=args.lineardesign,
