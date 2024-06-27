@@ -122,7 +122,7 @@ class MutantGenerator(Sequence):
         # Apply mutations
         for i in mutation_choices:
             mut = choices[i]
-            child[mut.pos] = self.synonymous_codons[child[mut.pos]][mut.altcodon]
+            child[mut.pos + 1] = self.synonymous_codons[child[mut.pos + 1]][mut.altcodon]
 
         return child
 

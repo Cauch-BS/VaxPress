@@ -42,7 +42,7 @@ from .log import hbar, hbar_double, log
 from . import __version__
 from typing import Iterator, Dict, Any
 
-PROTEIN_ALPHABETS = 'ACDEFGHIKLMNPQRSTVWY' + STOP
+PROTEIN_ALPHABETS = 'ACDEFGHIKLMNPQRSTVWY' + "*"
 RNA_ALPHABETS = 'ACGU'
 
 ExecutionOptions = namedtuple('ExecutionOptions', [
@@ -68,7 +68,11 @@ class CDSEvolutionChamber:
 
     def __init__(self, cdsseq: str, scoring_funcs: dict,
                  scoring_options: dict, exec_options: ExecutionOptions):
-        self.cdsseq = Sequence(cdsseq.upper()).cdsseq
+        self.seq = Sequence(cdsseq)
+        self.cdsseq = self.seq.cdsseq
+        
+        #Troubleshooting
+        print("Start of Sequence is ", self.cdsseq[:10], "...")
         self.seq_description = exec_options.seq_description
         self.outputdir = exec_options.output
         self.scoringfuncs = scoring_funcs
@@ -91,8 +95,7 @@ class CDSEvolutionChamber:
                                  f'{" ".join(invalid_letters)}')
             if self.cdsseq[-1] != STOP:
                 self.cdsseq += STOP
-        else: # RNA or DNA
-            self.cdsseq = self.cdsseq.replace('T', 'U')
+        else: 
             invalid_letters = set(self.cdsseq) - set(RNA_ALPHABETS)
             if invalid_letters:
                 raise ValueError(f'Invalid RNA sequence: {" ".join(invalid_letters)}')
@@ -116,7 +119,10 @@ class CDSEvolutionChamber:
                 self.quiet)
         elif self.execopts.random_initialization or self.execopts.protein:
             self.mutantgen.randomize_initial_codons()
-        self.population = [self.mutantgen.initial_codons]
+        self.population = [[self.seq._5utr] +
+                           self.mutantgen.initial_codons 
+                           + [self.seq._3utr]
+                           ]
         self.population_foldings = [None]
         self.population_sources = [None]
         parent_no_length = int(np.log10(self.execopts.n_survivors)) + 1
@@ -257,7 +263,7 @@ class CDSEvolutionChamber:
 
         self.population[:] = nextgeneration
         self.population_sources[:] = sources
-        self.flatten_seqs = [''.join(p) for p in self.population]
+        self.flatten_seqs = [''.join(strand) for strand in self.population]
 
     def prepare_full_scan(self, iter_no0: int) -> None:
         log.info(hbar)

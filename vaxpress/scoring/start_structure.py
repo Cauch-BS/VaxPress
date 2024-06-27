@@ -44,7 +44,7 @@ class StartCodonStructureFitness(ScoringFunction):
 
     penalty_metric_flags = {}
 
-    def __init__(self, width, weight):
+    def __init__(self, width, weight, _length_cds):
         self.width = width
         self.weight = -weight
 
@@ -55,7 +55,6 @@ class StartCodonStructureFitness(ScoringFunction):
         metrics = []
         scores = []
         start_at = len(Sequence(seqs, is_cds = False)._5utr)
-        #TROUBLESHOOTING
         print(f"Running start_str score from index {start_at} of sequence.")
 
         for fold in foldings:

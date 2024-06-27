@@ -13,16 +13,19 @@ class Sequence:
         self.initialize_codon_table(codon_table)
         self.codons = []
         self._5utr = ''
+        self._3utr = ''
 
         if is_protein:
             self.cdsseq = self.backtranslate(cdsseq)
+
         else:
             if type(cdsseq) == str:
-                self.cdsseq = cdsseq.upper()
+                self.cdsseq = cdsseq.upper().replace('T', 'U')
             elif type(cdsseq) == list and type(cdsseq[0]) == str:
                 self.cdsseq = ''.join(cdsseq)
+
         if not is_cds:
-            self._5utr, self.cdsseq, self.codons, self._3utr = self.truncate(cdsseq)
+            self._5utr, self.cdsseq, self.codons, self._3utr = self.truncate(self.cdsseq)
 
         if len(self.cdsseq) % 3 != 0:
             raise ValueError("Invalid CDS sequence length!")
@@ -76,3 +79,9 @@ class Sequence:
 
     def translate(self, rnaseq: str) -> str:
         return ''.join(self.codon2aa[rnaseq[i:i+3]] for i in range(0, len(rnaseq), 3))
+    
+if __name__ == "__main__":
+    cdsseq = Sequence("CCCCCATGATTTAACCCCC")
+    print(cdsseq.codons)
+    print(cdsseq._3utr)
+    print(cdsseq._5utr)

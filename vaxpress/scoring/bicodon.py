@@ -62,8 +62,6 @@ class BicodonAdaptationIndexFitness(ScoringFunction):
 
     def score(self, seqs):
         seqs = Sequence(seqs).cdsseq
-        #TROUBLESHOOTING
-        print(f"Evaluating Bicodon Adaptation of sequence starting from {seqs[0:5]}")
         if len(seqs[0]) < 6:
             return [0.0] * len(seqs)
 
