@@ -29,6 +29,7 @@ import sys
 import os
 from textwrap import wrap
 from tabulate import tabulate
+from typing import Iterator, Dict, Any
 from collections import namedtuple
 from concurrent import futures
 from itertools import cycle
