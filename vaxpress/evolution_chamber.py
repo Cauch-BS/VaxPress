@@ -70,9 +70,6 @@ class CDSEvolutionChamber:
                  scoring_options: dict, exec_options: ExecutionOptions):
         self.seq = Sequence(cdsseq)
         self.cdsseq = self.seq.cdsseq
-        
-        #Troubleshooting
-        print("Start of Sequence is ", self.cdsseq[:10], "...")
         self.seq_description = exec_options.seq_description
         self.outputdir = exec_options.output
         self.scoringfuncs = scoring_funcs

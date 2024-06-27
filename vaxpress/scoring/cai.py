@@ -65,7 +65,9 @@ class CodonAdaptationIndexFitness(ScoringFunction):
 
     def score(self, seqs):
         scores = self.codon_scores
-        seqs = Sequence(seqs).cdsseq
+        seqs = [Sequence(seq).cdsseq for seq in seqs]
+        #TROUBLESHOOTING
+        #print(f"Running CAI score of {seqs[0][:10]}.")
         cai = np.array([
         np.mean([scores[seq[i:i+3]] for i in range(0, len(seq), 3)])
         for seq in seqs])

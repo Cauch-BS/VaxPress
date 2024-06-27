@@ -61,7 +61,9 @@ class BicodonAdaptationIndexFitness(ScoringFunction):
         assert len(self.bicodon_scores) == 4096
 
     def score(self, seqs):
-        seqs = Sequence(seqs).cdsseq
+        seqs = [Sequence(seq).cdsseq for seq in seqs]
+        #TROUBLESHOOTING
+        #print(f"Running Bicodon CAI score of {seqs[0][:10]}.")
         if len(seqs[0]) < 6:
             return [0.0] * len(seqs)
 
