@@ -34,22 +34,27 @@ from collections import namedtuple
 from concurrent import futures
 from itertools import cycle
 from .mutant_generator import MutantGenerator, STOP
+from .sequence import Sequence
 from .sequence_evaluator import SequenceEvaluator
+from .crossover import BinaryCrossOver
 from .presets import dump_to_preset
 from .log import hbar, hbar_double, log
 from . import __version__
+from typing import Iterator, Dict, Any
 
-PROTEIN_ALPHABETS = 'ACDEFGHIKLMNPQRSTVWY' + STOP
+PROTEIN_ALPHABETS = 'ACDEFGHIKLMNPQRSTVWY' + "*"
 RNA_ALPHABETS = 'ACGU'
 
 ExecutionOptions = namedtuple('ExecutionOptions', [
     'n_iterations', 'n_population', 'n_survivors', 'initial_mutation_rate',
-    'winddown_trigger', 'winddown_rate', 'output', 'command_line', 'overwrite',
+    'winddown_trigger', 'winddown_rate', 
+    'has_crossover', 'freq_crossover', 'crossover_prob', 'crossover_method',
+    'output', 'command_line', 'overwrite',
     'seed', 'processes', 'random_initialization', 'conservative_start',
     'boost_loop_mutations', 'full_scan_interval', 'species', 'codon_table',
-    'protein', 'quiet', 'seq_description', 'print_top_mutants', 'addons',
+    'protein', 'cds', 'quiet', 'seq_description', 'print_top_mutants', 'addons',
     'lineardesign_dir', 'lineardesign_lambda', 'lineardesign_omit_start',
-    'folding_engine',
+    'folding_engine'
 ])
 
 class CDSEvolutionChamber:
@@ -63,8 +68,8 @@ class CDSEvolutionChamber:
 
     def __init__(self, cdsseq: str, scoring_funcs: dict,
                  scoring_options: dict, exec_options: ExecutionOptions):
-        self.cdsseq = cdsseq.upper()
-
+        self.seq = Sequence(cdsseq)
+        self.cdsseq = self.seq.cdsseq
         self.seq_description = exec_options.seq_description
         self.outputdir = exec_options.output
         self.scoringfuncs = scoring_funcs
@@ -87,8 +92,7 @@ class CDSEvolutionChamber:
                                  f'{" ".join(invalid_letters)}')
             if self.cdsseq[-1] != STOP:
                 self.cdsseq += STOP
-        else: # RNA or DNA
-            self.cdsseq = self.cdsseq.replace('T', 'U')
+        else: 
             invalid_letters = set(self.cdsseq) - set(RNA_ALPHABETS)
             if invalid_letters:
                 raise ValueError(f'Invalid RNA sequence: {" ".join(invalid_letters)}')
@@ -100,6 +104,7 @@ class CDSEvolutionChamber:
         self.mutantgen = MutantGenerator(self.cdsseq, self.rand,
                                          self.execopts.codon_table,
                                          self.execopts.protein,
+                                         self.execopts.cds,
                                          self.execopts.boost_loop_mutations)
         if self.execopts.lineardesign_lambda is not None:
             log.info('==> Initializing sequence with LinearDesign...')
@@ -111,7 +116,10 @@ class CDSEvolutionChamber:
                 self.quiet)
         elif self.execopts.random_initialization or self.execopts.protein:
             self.mutantgen.randomize_initial_codons()
-        self.population = [self.mutantgen.initial_codons]
+        self.population = [[self.seq._5utr] +
+                           self.mutantgen.initial_codons 
+                           + [self.seq._3utr]
+                           ]
         self.population_foldings = [None]
         self.population_sources = [None]
         parent_no_length = int(np.log10(self.execopts.n_survivors)) + 1
@@ -120,6 +128,14 @@ class CDSEvolutionChamber:
             if n is not None else '-' * length)
 
         self.mutation_rate = self.execopts.initial_mutation_rate
+        self.has_crossover = self.execopts.has_crossover
+        #this is the frequency with which crossover is performed
+        self.freq_crossover = self.execopts.freq_crossover if self.has_crossover else 0 
+        #this is the probability with which bases are exchanged if crossover is performed 
+        self.crossover_prob = self.execopts.crossover_prob if self.has_crossover else 0 
+        self.crossover_method = self.execopts.crossover_method if self.has_crossover else None
+        if self.crossover_method not in ('single', 'double', 'uniform', None):
+            raise ValueError('Invalid crossover method')
         self.full_scan_interval = self.execopts.full_scan_interval
         self.in_final_full_scan = False
 
@@ -163,13 +179,16 @@ class CDSEvolutionChamber:
         log.info(f' * Command line: {" ".join(sys.argv)}')
         log.info('')
 
-    def mutate_population(self, iter_no0: int) -> None:
+    def next_generation(self, iter_no0: int) -> None: 
+        #mutate population renamed to next_generation in order to reflect the fact that 
+        #the population undergoes sexual reproduction
         if self.full_scan_interval > 0 and (
                 iter_no0 + 1) % self.full_scan_interval == 0:
             return self.prepare_full_scan(iter_no0)
 
         self.expected_total_mutations = (
             self.mutantgen.compute_expected_mutations(self.mutation_rate))
+        
         if self.expected_total_mutations < self.stop_threshold:
             if not self.in_final_full_scan:
                 log.info(hbar)
@@ -185,7 +204,7 @@ class CDSEvolutionChamber:
         log.info(f'Iteration {iter_no0+1}/{self.execopts.n_iterations}  -- '
                  f'  mut_rate: {self.mutation_rate:.5f} -- '
                  f'E(muts): {self.expected_total_mutations:.1f}')
-
+        
         nextgeneration = self.population[:]
         sources = list(range(len(nextgeneration)))
 
@@ -196,11 +215,44 @@ class CDSEvolutionChamber:
                 break
 
         assert len(self.population) == len(self.population_foldings)
+        
+        #population of the next generation
+        n_nextgeneration = max(0, self.execopts.n_population - len(self.population))
 
-        n_new_mutants = max(0, self.execopts.n_population - len(self.population))
-        for parent, parent_folding, parent_no, _ in zip(
-                    cycle(self.population), cycle(self.population_foldings),
-                    cycle(range(len(self.population))), range(n_new_mutants)):
+        #population of the next generation generated through crossover
+        n_withcrossover = int(2 * (n_nextgeneration * self.freq_crossover // 2))
+
+        last_crossover = 0
+
+        for _, parent_no, spouse_no in zip(
+                    range(0, n_withcrossover, 2),
+                    cycle(range(len(self.population[::2]))), 
+                    cycle(range(len(self.population[1::2]))),
+        ):
+            parent = self.population[parent_no]
+            spouse = self.population[spouse_no]
+
+            crossover = BinaryCrossOver(parent, spouse)
+            if self.crossover_method == 'single':
+                children = crossover.single_point_crossover(self.crossover_prob)
+            elif self.crossover_method == 'double':
+                children = crossover.two_point_crossover(self.crossover_prob)
+            elif self.crossover_method == 'uniform':
+                children = crossover.binomial_crossover(self.crossover_prob)
+            for child, num in zip(children, (parent_no, spouse_no)):
+                new_child = self.mutantgen.generate_mutant(child, self.mutation_rate) #child is mutated 
+                nextgeneration.append(new_child)
+                sources.append(num)
+            
+            last_crossover = spouse_no
+
+        for parent_no, _ in zip(
+                    cycle(list(range(last_crossover, len(self.population))) + 
+                          list(range(last_crossover))), 
+                    range(n_withcrossover, n_nextgeneration)
+                    ):
+            
+            parent, parent_folding = self.population[parent_no], self.population_foldings[parent_no]
             child = self.mutantgen.generate_mutant(parent, self.mutation_rate,
                                                    choices, parent_folding)
             nextgeneration.append(child)
@@ -208,7 +260,7 @@ class CDSEvolutionChamber:
 
         self.population[:] = nextgeneration
         self.population_sources[:] = sources
-        self.flatten_seqs = [''.join(p) for p in self.population]
+        self.flatten_seqs = [''.join(strand) for strand in self.population]
 
     def prepare_full_scan(self, iter_no0: int) -> None:
         log.info(hbar)
@@ -256,7 +308,7 @@ class CDSEvolutionChamber:
                 n_parents = len(self.population)
 
                 try:
-                    self.mutate_population(i)
+                    self.next_generation(i)
                 except StopIteration:
                     break
 

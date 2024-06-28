@@ -24,6 +24,7 @@
 #
 
 from . import ScoringFunction
+from ..sequence import Sequence
 
 class StartCodonStructureFitness(ScoringFunction):
 
@@ -50,12 +51,13 @@ class StartCodonStructureFitness(ScoringFunction):
         if weight != 0:
             self.penalty_metric_flags[self.name] = 's'
 
-    def score(self, seqs, foldings):
+    def score(self, seqs: str, foldings):
         metrics = []
         scores = []
+        start_at = len(Sequence(seqs[0], is_cds = False)._5utr)
 
         for fold in foldings:
-            start_structure = fold['folding'][:self.width]
+            start_structure = fold['folding'][start_at:(start_at + self.width)]
 
             start_folded = start_structure.count('(') + start_structure.count(')')
             metrics.append(start_folded)

@@ -199,6 +199,8 @@ def parse_options(scoring_funcs, preset, default_off):
                      help='input fasta file containing the CDS sequence')
     grp.add_argument('--protein', default=False, action='store_true',
                      help='input is a protein sequence')
+    grp.add_argument('--cds', default=False, action='store_true',
+                     help='input is a CDS sequence')
     grp.add_argument('-o', '--output', required=True, metavar='DIR',
                      help='output directory')
     grp.add_argument('--overwrite', action='store_true',
@@ -226,7 +228,7 @@ def parse_options(scoring_funcs, preset, default_off):
                           '(default: vienna)')
     grp.add_argument('--default-off', default=False, action='store_true',
                      help='turn all fitness functions off by default')
-
+    
     grp = parser.add_argument_group('Optimization Options')
     grp.add_argument('--random-initialization', action='store_true',
                      default=False, help='randomize all codons at the beginning')
@@ -257,6 +259,18 @@ def parse_options(scoring_funcs, preset, default_off):
     grp.add_argument('--winddown-rate', type=float, default=0.9, metavar='RATE',
                      help='mutation rate multiplier when mutation stabilization '
                           'is triggered (default: 0.9)')
+    grp.add_argument('--has-crossover', type = bool, default=False, metavar = 'BOOL',
+                     help='use crossover when generating mutant sequences'
+                     '(default: False)')
+    grp.add_argument('--frequency-crossover', type = float, default=0.5, metavar='FREQ',
+                     help='frequency of crossover when generating mutant sequences '
+                          '(default: 0.5)')
+    grp.add_argument('--crossover-prob', type = float, default = 0.25, metavar = 'PROB',
+                     help = 'probability of bases being swapped when crossovre occurs'
+                     '(must not exceed 0.5) (default: 0.25)')
+    grp.add_argument('--crossover-method', type = str , default = 'single', metavar = 'METHOD',
+                     help = 'method of crossover to be used (default: single point crossover)'
+                     '(options: single, double, uniform)')
     grp.add_argument('--species', default='human', metavar='NAME',
                      help='target species (default: human)')
     grp.add_argument('--codon-table', default='standard', metavar='NAME',
@@ -325,6 +339,10 @@ def run_vaxpress():
         initial_mutation_rate=args.initial_mutation_rate,
         winddown_trigger=args.winddown_trigger,
         winddown_rate=args.winddown_rate,
+        has_crossover = args.has_crossover,
+        freq_crossover = args.frequency_crossover,
+        crossover_prob = args.crossover_prob,
+        crossover_method = args.crossover_method,
         output=args.output,
         command_line=command_line,
         overwrite=args.overwrite,
@@ -340,6 +358,7 @@ def run_vaxpress():
         seq_description=seqdescr,
         print_top_mutants=args.print_top,
         protein=args.protein,
+        cds = args.cds,
         addons=addon_paths,
         lineardesign_dir=args.lineardesign_dir,
         lineardesign_lambda=args.lineardesign,
