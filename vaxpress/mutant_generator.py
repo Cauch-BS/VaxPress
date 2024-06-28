@@ -140,7 +140,7 @@ class MutantGenerator(Sequence):
                 continue
 
             child = parent[:]
-            child[choice.pos] = self.synonymous_codons[child[choice.pos]][
+            child[choice.pos + 1] = self.synonymous_codons[child[choice.pos + 1]][
                                     choice.altcodon]
             yield child
 
