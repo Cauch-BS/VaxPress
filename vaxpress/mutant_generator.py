@@ -76,7 +76,7 @@ class MutantGenerator(Sequence):
         self.initial_codons[:] = [
             self.rand.choice([codon] + self.synonymous_codons[codon])
             for codon in self.initial_codons]
-
+        
     def lineardesign_initial_codons(self, lmd, lddir, omitstart, quiet) -> None:
         prot = self.translate(self.cdsseq)
 
