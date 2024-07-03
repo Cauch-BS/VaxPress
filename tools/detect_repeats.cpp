@@ -4,19 +4,21 @@
 #include <vector>
 #include <tuple>
 #include <algorithm>
+#define GET_ACGU_NUM(x) ((x=='A'? 0 : (x=='C'? 1 : (x=='G'? 2 : (x=='U'?3: 4)))))
 
-std::vector<std::tuple<std::string, int>> rabin_karp_repeated_substrings(const std::string& s, int min_length, int max_length) {
+using namespace std;
+
+vector<tuple<string, int, int>> rabin_karp_repeated_substrings(const string& s, int min_length) {
     int n = s.length();
-    int truncate_n = std::min(n, max_length)  ;
     int base = 4;
     int mod = 2147483647;
-    std::vector<std::tuple<std::string, int>> result;
-    std::vector<std::vector<bool>> is_substring(n, std::vector<bool>(n, false));
+    vector<tuple<string, int, int>> result;
+    vector<vector<bool>> is_substring(n, vector<bool>(n, false));
 
-    auto calculate_hash = [&](const std::string& sub) {
+    auto calculate_hash = [&](const string& sub) {
         long long h = 0;
         for (char c : sub) {
-            h = (h * base + c) % mod;
+            h = (h * base + GET_ACGU_NUM(c)) % mod;
         }
         return h;
     };
@@ -31,50 +33,103 @@ std::vector<std::tuple<std::string, int>> rabin_karp_repeated_substrings(const s
             base = (static_cast<long long>(base) * base) % modulus;
             exp /= 2;
         }
+
         return result;
     };
     
     auto roll_hash = [&](long long prev_hash, char left_char, char right_char, long long exp_result) {
-        
-        long long new_hash = (prev_hash * base - left_char * exp_result + right_char) % mod;
+        long long new_hash = (prev_hash * base - GET_ACGU_NUM(left_char) * exp_result + GET_ACGU_NUM(right_char)) % mod;
         new_hash = new_hash < 0 ? new_hash + mod: new_hash;
         return new_hash;
     };
 
-    for (int length = truncate_n - 1; length >= min_length - 1; --length) {
-        std::unordered_map <long long, int> seen;
-        long long current_hash = calculate_hash(s.substr(0, length + 1));
-        seen[current_hash] = 0;
+    unordered_map <long long, int> seen;
+    long long current_hash = calculate_hash(s.substr(0, min_length));
+    seen[current_hash] = 0;
 
-        for (int i = 1; i <= n - length - 1; ++i) {
-            long long exp_result = power_mod(base, length + 1, mod);
-            current_hash = roll_hash(current_hash, s[i - 1], s[i + length], exp_result);
-            std::string substring = s.substr(i, length + 1);
+    for (int i = 1; i < n - min_length; ++i) {
+        long long exp_result = power_mod(base, min_length, mod);
+        current_hash = roll_hash(current_hash, s[i - 1], s[i + min_length - 1], exp_result);
+        
+        if (seen.find(current_hash) != seen.end()) {
+            string substring = s.substr(i, min_length);
+            int prev_pos = seen[current_hash];
+            result.emplace_back(substring, prev_pos, i);
+            cout << "Repeated subtring " << substring << " at position " << i << endl;
             
-            if (seen.find(current_hash) != seen.end()) {
-                std::string substring = s.substr(i, length + 1);
-                int prev_pos = seen[current_hash];
-                if (s.substr(prev_pos, length + 1) == substring){
-                    result.push_back(std::make_tuple(substring, i));
-                    std::cout << "Repeated subtring " << substring << " at position " << i << std::endl;
-                }
-            }else{
-            seen[current_hash] = i;
-            }
+        }else{
+        seen[current_hash] = i;
         }
     }
+    
 
     return result;
 }
 
+vector<tuple<string, int, int, int, int>> groupConsecutive(const vector<tuple<string, int, int>>& input, int min_length) {
+    vector<tuple<string, int, int, int, int>> result;
+
+    // Start with the first tuple
+    auto current = input[0];
+    string current_str = get<0>(current);
+    int last = get<1>(current);
+    int last_end = last;
+    int now = get<2>(current);
+    int end = now;
+
+    for (size_t i = 1; i < input.size(); ++i) {
+        if (get<2>(input[i]) == end + 1) {
+            // Extend the current range
+            current_str += get<0>(input[i])[min_length - 1];
+            end = get<2>(input[i]);
+        } else {
+            last_end = last + end - now + min_length - 1;
+            end = end + min_length - 1;
+            // Add the current group to the result
+            result.emplace_back(current_str, last, last_end, now, end);
+            // Start a new group
+            current_str = get<0>(input[i]); 
+            auto rbegin = make_reverse_iterator(input.begin() + i);
+            auto rend = make_reverse_iterator(input.begin());
+
+            auto last_it = find_if(
+                        rbegin, rend, 
+                        [&current_str](const tuple<string, int, int>& t) {
+                            return get<0>(t) == current_str;
+                        });
+
+            last = last_it != rend ? - distance(last_it, rend) : get<1>(input[i]) ;
+            last_end = last;
+            now = get<2>(input[i]);
+            end = get<2>(input[i]);
+        }
+    }
+
+    last_end = last + end - now + min_length - 1;
+    end = end + min_length - 1;
+    // Add the last group to the result
+    result.emplace_back(current_str, last, last_end, now, end);
+
+    return result;
+}
+
+
 int main() {
-    std::string input_sequence = "CAGAAATCAATTCTTTCAGAAATCAATTGGTACCTTACTGAATTATCGATTTTCTGTTTTCGTCCTACAAATACTTTAATGGGGTGCGGCAGGTAGTTATTGCCCATTGTACTCAGCAGAAATCAATTTACCGGTGTCGCGGCGTAGGCCAAGCCCCAACATAGGATCTTCCTT";
+    string input_sequence = "CAGAAATCAATTCTTTCAGAAATCAATTGGTACCTTACTGAATTATCGATTTTCTGTTTTCGTCCTACAAATACTTTAATGGGGTGCGGCAGGTAGTTATTGCCCATTGTACTCAGCAGAAATCAATTTACCGGTGTCGCGGCGTAGGCCAAGCCCCAACATAGGATCTTCCTT";
     int min_length = 8;
-    int max_length = 100;
-    std::vector<std::tuple<std::string, int>> result = rabin_karp_repeated_substrings(input_sequence, min_length, max_length);
+    vector<tuple<string, int, int, int, int>> result = groupConsecutive(
+        rabin_karp_repeated_substrings(
+            input_sequence, min_length
+        ), min_length
+    );
 
     for (const auto& tuple : result) {
-        std::cout << "(" << std::get<0>(tuple) << ", " << std::get<1>(tuple) << ")" << std::endl;
+        cout << "(" << get<0>(tuple) 
+             << ", " << get<1>(tuple) 
+             << ", " << get<2>(tuple) 
+             << ", " << get<3>(tuple) 
+             << ", " << get<4>(tuple) 
+             << ")" << endl;
     }
 
     return 0;
