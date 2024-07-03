@@ -28,7 +28,7 @@ import pytrf
 
 class TandemRepeatsFitness(ScoringFunction):
 
-    name = 'repeats'
+    name = 'tandem_repeats'
     description = 'Tandem Repeats'
     priority = 60
 
@@ -46,7 +46,7 @@ class TandemRepeatsFitness(ScoringFunction):
                    'repeat (default: 10)')),
     ]
 
-    penalty_metric_flags = {'repeat': 'r'}
+    penalty_metric_flags = {'tandem repeat': 'tr'}
 
     def __init__(self, weight, min_repeats, min_length, _length_cds):
         self.weight = weight / _length_cds * -1000
