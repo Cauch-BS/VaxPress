@@ -64,7 +64,7 @@ class TandemRepeatsFitness(ScoringFunction):
 
         repeat_score = [length * self.weight for length in replengths]
 
-        metrics = {'repeat': replengths}
-        scores = {'repeat': repeat_score}
+        metrics = {'tandem_repeat': replengths}
+        scores = {'tandem_repeat': repeat_score}
 
         return scores, metrics

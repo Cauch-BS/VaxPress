@@ -1,7 +1,7 @@
 from . import ScoringFunction
 from ..sequence import Sequence
 import repeats 
-import os
+
 
 class RepeatsFitness(ScoringFunction):
     name = 'repeats'
@@ -18,7 +18,7 @@ class RepeatsFitness(ScoringFunction):
                    'repeat (default: 8)')),
     ]
 
-    penalty_metric_flags = {'remote repeat': 'rr'}
+    penalty_metric_flags = {'remote_repeat': 'rr'}
 
     def __init__(self, weight, min_length, _length_cds):
         self.weight = weight 
@@ -28,12 +28,13 @@ class RepeatsFitness(ScoringFunction):
         penalties = []
         for seq in seqs:
             seq = seq[:- Sequence(seq).get_polyA()]
+            print(seq[-10:])
             penalty = repeats.returnRepeatsPenalty(seq, self.min_length)
             penalties.append(penalty)
 
         remote_repeat_score = [penalty * self.weight for penalty in penalties]
 
-        metrics = {'repeat': penalties}
-        scores = {'repeat': remote_repeat_score}
+        metrics = {'remote_repeat': penalties}
+        scores = {'remote_repeat': remote_repeat_score}
 
         return scores, metrics
