@@ -29,7 +29,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 ext_modules = [
     Pybind11Extension(
         'repeats',
-        ["src/utils/remote_repeats.cpp"]
+        ["vaxpress/utils/remote_repeats.cpp"]
     )
 ]
 
