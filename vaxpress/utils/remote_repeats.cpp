@@ -71,7 +71,7 @@ float returnRepeatsPenalty(const char* seq, int min_length){
     int length = sequence.length();
     vector<tuple<string, int, int>> repeats = rabin_karp_repeated_substrings(sequence, min_length);
     float penalty = 0;
-    float epsilon = 1.0 / 65536;
+    float epsilon = 1.0 / 256;
     for (const auto& tuple : repeats) {
         float score = 8.0 /(get<2>(tuple)-get<1>(tuple));
         float norm_score = (1.0 + epsilon) /(1.0 + epsilon  - score);
