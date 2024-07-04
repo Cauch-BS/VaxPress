@@ -302,7 +302,6 @@ class SequenceEvaluationSession:
     def collect_scores(self, future):
         try:
             ret = future.result()
-            print(ret)
             if ret is None:
                 self.errors.append('KeyboardInterrupt')
                 if self.pbar is not None:
