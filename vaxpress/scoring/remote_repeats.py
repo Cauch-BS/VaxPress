@@ -1,7 +1,7 @@
 from . import ScoringFunction
 import ctypes 
 import os
-repeat_path = os.path.abspath('./repeats.so')
+repeat_path = os.path.abspath('./tools/repeats.so')
 repeats = ctypes.CDLL(repeat_path) 
 repeats.returnRepeatsPenalty.argtypes =  [ctypes.c_char_p, ctypes.c_int]
 repeats.returnRepeatsPenalty.restype = ctypes.c_float
