@@ -4,6 +4,7 @@
 #include <vector>
 #include <tuple>
 #include <algorithm>
+#include <pybind11/pybind11.h>
 #define GET_ACGU_NUM(x) ((x=='A'? 0 : (x=='C'? 1 : (x=='G'? 2 : (x=='U'?3: 4)))))
 
 using namespace std;
@@ -65,7 +66,7 @@ vector<tuple<string, int, int>> rabin_karp_repeated_substrings(const string& s, 
     return result;
 }
 
-extern "C" float returnRepeatsPenalty(const char* seq, int min_length){
+float returnRepeatsPenalty(const char* seq, int min_length){
     string sequence(seq);
     int length = sequence.length();
     vector<tuple<string, int, int>> repeats = rabin_karp_repeated_substrings(sequence, min_length);
@@ -76,6 +77,13 @@ extern "C" float returnRepeatsPenalty(const char* seq, int min_length){
         float norm_score = (1.0 + epsilon) /(1.0 + epsilon  - score);
         penalty += norm_score;
     }
-    penalty /= - (length * 1.0 / 5); 
+    penalty /= - (length * 1.0); 
     return penalty;
+}
+
+namespace py = pybind11;
+
+PYBIND11_MODULE(repeats, m) {
+    m.doc() = "Remote Repeats Penalty"; // optional module docstring
+    m.def("returnRepeatsPenalty", &returnRepeatsPenalty, "A function that returns the remote repeats penalty");
 }

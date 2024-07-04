@@ -1,14 +1,7 @@
 from . import ScoringFunction
-import ctypes 
+from ..sequence import Sequence
+import repeats 
 import os
-package_dir = os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))
-)
-repeat_path = os.path.join(package_dir, 'utils', 'repeats.so')
-
-repeats = ctypes.CDLL(repeat_path) 
-repeats.returnRepeatsPenalty.argtypes =  [ctypes.c_char_p, ctypes.c_int]
-repeats.returnRepeatsPenalty.restype = ctypes.c_float
 
 class RepeatsFitness(ScoringFunction):
     name = 'repeats'
@@ -34,7 +27,7 @@ class RepeatsFitness(ScoringFunction):
     def score(self, seqs):
         penalties = []
         for seq in seqs:
-            seq = seq.encode('utf-8')
+            seq = seq[:- Sequence(seq).get_polyA()]
             penalty = repeats.returnRepeatsPenalty(seq, self.min_length)
             penalties.append(penalty)
 

@@ -12,8 +12,8 @@ class Sequence:
                  is_protein: bool = False, is_cds = False):
         self.initialize_codon_table(codon_table)
         self.codons = []
-        self._5utr = ''
-        self._3utr = ''
+        self.utr5 = ''
+        self.utr3 = ''
 
         if is_protein:
             self.cdsseq = self.backtranslate(cdsseq)
@@ -25,7 +25,7 @@ class Sequence:
                 self.cdsseq = ''.join(cdsseq)
 
         if not is_cds:
-            self._5utr, self.cdsseq, self.codons, self._3utr = self.truncate(self.cdsseq)
+            self.utr5, self.cdsseq, self.codons, self.utr3 = self.truncate(self.cdsseq)
 
         if len(self.cdsseq) % 3 != 0:
             raise ValueError("Invalid CDS sequence length!")
@@ -47,9 +47,9 @@ class Sequence:
             except ValueError:
                 continue
         reading_frame = reading_frame[:(min_stop_index + 1)]
-        _5utr = rawseq[:start]
-        _3utr = rawseq[start + 3*(min_stop_index + 1):]
-        return _5utr, ''.join(reading_frame), reading_frame, _3utr
+        utr5 = rawseq[:start]
+        utr3 = rawseq[start + 3*(min_stop_index + 1):]
+        return utr5, ''.join(reading_frame), reading_frame, utr3
 
     def initialize_codon_table(self, codon_table: str) -> None:
         table_var_name = f'{codon_table}_rna_table'
@@ -80,8 +80,18 @@ class Sequence:
     def translate(self, rnaseq: str) -> str:
         return ''.join(self.codon2aa[rnaseq[i:i+3]] for i in range(0, len(rnaseq), 3))
     
+    def get_polyA(self) -> int:
+        '''Returns the (reversed) index of first polyA tail in the 3' UTR.
+        If no polyA tail is found, return 1'''
+        length = len(self.utr3)
+        idx = self.utr3.find('AAAAAAAA')
+        result = - idx if idx == -1 else length - idx
+        return result
+    
 if __name__ == "__main__":
-    cdsseq = Sequence("CCCCCATGATTTAACCCCC")
+    seq = 'CCCCCATGATTTAAAAAAAAAAAAAAAAAAAAAA'
+    cdsseq = Sequence(seq)
     print(cdsseq.codons)
-    print(cdsseq._3utr)
-    print(cdsseq._5utr)
+    print(cdsseq.utr5)
+    print(cdsseq.utr3)
+    print(seq[:- cdsseq.get_polyA()])

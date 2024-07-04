@@ -116,9 +116,9 @@ class CDSEvolutionChamber:
                 self.quiet)
         elif self.execopts.random_initialization or self.execopts.protein:
             self.mutantgen.randomize_initial_codons()
-        self.population = [[self.seq._5utr] +
+        self.population = [[self.seq.utr5] +
                            self.mutantgen.initial_codons 
-                           + [self.seq._3utr]
+                           + [self.seq.utr3]
                            ]
         self.population_foldings = [None]
         self.population_sources = [None]

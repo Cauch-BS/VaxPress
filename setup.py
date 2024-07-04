@@ -24,6 +24,14 @@
 #
 
 from setuptools import setup
+from pybind11.setup_helpers import Pybind11Extension, build_ext
+
+ext_modules = [
+    Pybind11Extension(
+        'repeats',
+        ["src/detect_repeats.cpp"]
+    )
+]
 
 setup(
     name='vaxpress',
@@ -57,6 +65,11 @@ setup(
                    'utils/*',
                    ]
                 },
+
+    ext_modules = ext_modules,
+    
+    cmdclass = {'build_ext': build_ext},
+
     data_files=[('share/vaxpress/examples',
         ['examples/count_homotrimers.py', 'examples/restriction_site.py',
          'examples/adenosine_in_stems.py'])],
@@ -65,6 +78,7 @@ setup(
             'vaxpress = vaxpress.__main__:run_vaxpress',
         ],
     },
+
     install_requires=[
         'biopython >= 1.5',
         'numpy >= 1.15',
