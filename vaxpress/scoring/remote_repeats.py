@@ -27,7 +27,7 @@ class RepeatsFitness(ScoringFunction):
         penalties = []
         for seq in seqs:
             seq = seq[:- Sequence(seq).get_polyA()]
-            print(seq[-10:])
+            #print(seq[-10:])
             penalty = repeats.returnRepeatsPenalty(seq, self.min_length)
             penalties.append(penalty)
 
