@@ -65,37 +65,17 @@ vector<tuple<string, int, int>> rabin_karp_repeated_substrings(const string& s, 
     return result;
 }
 
-float returnRepeatsPenalty(const string& seq, int min_length){
-    int length = seq.length();
-    vector<tuple<string, int, int>> repeats = rabin_karp_repeated_substrings(seq, min_length);
+extern "C" float returnRepeatsPenalty(const char* seq, int min_length){
+    string sequence(seq);
+    int length = sequence.length();
+    vector<tuple<string, int, int>> repeats = rabin_karp_repeated_substrings(sequence, min_length);
     float penalty = 0;
-    float epsilon = 1.0 / 256;
+    float epsilon = 1.0 / 65536;
     for (const auto& tuple : repeats) {
-        float score = 8/(get<2>(tuple)-get<1>(tuple));
+        float score = 8.0 /(get<2>(tuple)-get<1>(tuple));
         float norm_score = (1.0 + epsilon) /(1.0 + epsilon  - score);
         penalty += norm_score;
-        cout << "Score: " << norm_score << endl;
     }
-    penalty /= length;
+    penalty /= - (length * 1.0 / 5); 
     return penalty;
 }
-
-
-int main() {
-    string input_sequence = "CAGAAATCAATTCTTTCAGAAATCAATTGGTACCTTACTGAATTATCGATTTTCTGTTTTCGTCCTACAAATACTTTAATGGGGTGCGGCAGGTAGTTATTGCCCATTGTACTCAGCAGAAATCAATTTACCGGTGTCGCGGCGTAGGCCAAGCCCCAACATAGGATCTTCCTT";
-    int min_length = 8;
-    
-    vector <tuple<string, int, int>> repeats = rabin_karp_repeated_substrings(input_sequence, min_length);
-    
-    float penalty = returnRepeatsPenalty(input_sequence, min_length);
-
-    for (const auto& tuple : repeats) {
-        cout << "Substring: " << get<0>(tuple) << " Last Seen: " << get<1>(tuple) << " Now: " << get<2>(tuple) << endl;
-    }
-
-    cout << "Repeats penalty: " << penalty << endl;
-
-    return 0;
-}
-
-
