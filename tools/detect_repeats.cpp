@@ -28,9 +28,9 @@ vector<tuple<string, int, int>> rabin_karp_repeated_substrings(const string& s, 
         base = base % modulus;
         while (exp > 0) {
             if (exp % 2 == 1) {
-                result = (result * static_cast<long long>(base)) % modulus;
+                result = (result * base) % modulus;
             }
-            base = (static_cast<long long>(base) * base) % modulus;
+            base = (base * base) % modulus;
             exp /= 2;
         }
 
@@ -54,7 +54,8 @@ vector<tuple<string, int, int>> rabin_karp_repeated_substrings(const string& s, 
         if (seen.find(current_hash) != seen.end()) {
             string substring = s.substr(i, min_length);
             int prev_pos = seen[current_hash];
-            result.emplace_back(substring, prev_pos, i);            
+            result.emplace_back(substring, prev_pos, i);
+            seen[current_hash] = i;            
         }else{
         seen[current_hash] = i;
         }
@@ -64,89 +65,37 @@ vector<tuple<string, int, int>> rabin_karp_repeated_substrings(const string& s, 
     return result;
 }
 
-vector<tuple<string, int, int, int>> groupConsecutive(const vector<tuple<string, int, int>>& input, int min_length) {
-    vector<tuple<string, int, int, int>> result;
-
-    // Start with the first tuple
-    auto current = input[0];
-    string current_str = get<0>(current);
-    int last = get<1>(current);
-    int now = get<2>(current);
-    int end = now;
-    int n_repeat;
-
-    for (size_t i = 1; i < input.size(); ++i) {
-        if (get<2>(input[i]) == end + 1) {
-            // Extend the current range
-            current_str += get<0>(input[i])[min_length - 1];
-            end = get<2>(input[i]);
-        } else {
-            n_repeat = end - now + min_length;
-            end = end + min_length - 1;
-            // Add the current group to the result
-            result.emplace_back(current_str, last, now, n_repeat);
-
-            // Start a new group
-            current_str = get<0>(input[i]); 
-            auto rbegin = make_reverse_iterator(input.begin() + i);
-            auto rend = make_reverse_iterator(input.begin());
-
-            auto last_it = find_if(
-                        rbegin, rend, 
-                        [&current_str](const tuple<string, int, int>& t) {
-                            return get<0>(t) == current_str;
-                        });
-
-            last = last_it != rend ? get<2>(*last_it) : get<1>(input[i]) ;
-            now = get<2>(input[i]);
-            end = get<2>(input[i]);
-        }
-    }
-
-    n_repeat = end - now + min_length;
-    end = end + min_length - 1;
-    // Add the last group to the result
-    result.emplace_back(current_str, last, now, n_repeat);
-
-    return result;
-}
-
 float returnRepeatsPenalty(const string& seq, int min_length){
     int length = seq.length();
     vector<tuple<string, int, int>> repeats = rabin_karp_repeated_substrings(seq, min_length);
-    vector<tuple<string, int, int, int>> grouped_repeats = groupConsecutive(repeats, min_length);
     float penalty = 0;
-    for (const auto& tuple : grouped_repeats) {
-        float score = get<3>(tuple)/(get<2>(tuple)-get<1>(tuple));
-        penalty += 1/(1.01 - score);
-        cout << "Score: " << score << endl;
+    float epsilon = 1.0 / 256;
+    for (const auto& tuple : repeats) {
+        float score = 8/(get<2>(tuple)-get<1>(tuple));
+        float norm_score = (1.0 + epsilon) /(1.0 + epsilon  - score);
+        penalty += norm_score;
+        cout << "Score: " << norm_score << endl;
     }
     penalty /= length;
     return penalty;
-
 }
 
 
 int main() {
     string input_sequence = "CAGAAATCAATTCTTTCAGAAATCAATTGGTACCTTACTGAATTATCGATTTTCTGTTTTCGTCCTACAAATACTTTAATGGGGTGCGGCAGGTAGTTATTGCCCATTGTACTCAGCAGAAATCAATTTACCGGTGTCGCGGCGTAGGCCAAGCCCCAACATAGGATCTTCCTT";
     int min_length = 8;
-    vector<tuple<string, int, int, int>> result = groupConsecutive(
-        rabin_karp_repeated_substrings(
-            input_sequence, min_length
-        ), min_length
-    );
-
-    for (const auto& tuple : result) {
-        cout << "(" << get<0>(tuple) 
-             << ", " << get<1>(tuple) 
-             << ", " << get<2>(tuple) 
-             << ", " << get<3>(tuple) 
-             << ")" << endl;
-    }
-
+    
+    vector <tuple<string, int, int>> repeats = rabin_karp_repeated_substrings(input_sequence, min_length);
+    
     float penalty = returnRepeatsPenalty(input_sequence, min_length);
 
-    cout << "The penalty for the sequence is: " << penalty << endl;
+    for (const auto& tuple : repeats) {
+        cout << "Substring: " << get<0>(tuple) << " Last Seen: " << get<1>(tuple) << " Now: " << get<2>(tuple) << endl;
+    }
+
+    cout << "Repeats penalty: " << penalty << endl;
 
     return 0;
 }
+
+
