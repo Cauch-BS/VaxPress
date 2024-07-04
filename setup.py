@@ -52,7 +52,11 @@ setup(
         'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
     packages=['vaxpress', 'vaxpress.scoring', 'vaxpress.data'],
-    package_data={'vaxpress': ['report_template/*']},
+    package_data={'vaxpress': 
+                  ['report_template/*',
+                   'utils/*',
+                   ]
+                },
     data_files=[('share/vaxpress/examples',
         ['examples/count_homotrimers.py', 'examples/restriction_site.py',
          'examples/adenosine_in_stems.py'])],
