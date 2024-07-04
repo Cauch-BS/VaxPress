@@ -2,7 +2,6 @@ from . import ScoringFunction
 from ..sequence import Sequence
 import repeats 
 
-
 class RepeatsFitness(ScoringFunction):
     name = 'repeats'
     description = 'Remote Repeats'

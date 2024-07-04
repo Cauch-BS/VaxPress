@@ -58,6 +58,7 @@ class TandemRepeatsFitness(ScoringFunction):
         replengths = []
         for seq in seqs:
             seq = seq[:- Sequence(seq).get_polyA()]
+            # print(seq[-10:])
             repeats = pytrf.GTRFinder('name', seq, min_repeat=self.min_repeats,
                                     min_length=self.min_length)
             replengths.append(sum(r.length for r in repeats))
