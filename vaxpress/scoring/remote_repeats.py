@@ -10,8 +10,8 @@ class RepeatsFitness(ScoringFunction):
 
     arguments = [
         ('weight',
-         dict(type=float, default=1.0, metavar='WEIGHT',
-              help='scoring weight for remote repeats (default: 1.0)')),
+         dict(type=float, default=5.0, metavar='WEIGHT',
+              help='scoring weight for remote repeats (default: 5.0)')),
         ('min-length',
          dict(type=int, default=8, metavar='LENGTH',
               help='minimum length of repeats to be considered as a remote '
