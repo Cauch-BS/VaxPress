@@ -3,7 +3,7 @@ from ..sequence import Sequence
 import repeats 
 
 class RepeatsFitness(ScoringFunction):
-    name = 'repeats'
+    name = 'remote_repeats'
     description = 'Remote Repeats'
     priority = 35
 
