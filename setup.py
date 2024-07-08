@@ -34,76 +34,17 @@ ext_modules = [
         extra_compile_args=['-std=c++17']
     ),
     Pybind11Extension(
-        "nsga2_module",
-        sources=["vaxpress/utils/moo/nsga2.cpp"],
+        "nsga2",
         include_dirs=[
-            "/home/catbase/projects/VaxPress/vaxpress/utils/moo",
+            './vaxpress/utils/moo',
         ],
+        sources=['./vaxpress/utils/moo/nsga2.cpp'],
         language='c++',
         extra_compile_args=['-std=c++17'],
     ),
 ]
 
 setup(
-    name='vaxpress',
-    version='0.9',
-    description='Codon Optimizer for mRNA Vaccine Design',
-    author='Hyeshik Chang',
-    author_email='hyeshik@snu.ac.kr',
-    url='https://github.com/ChangLabSNU/VaxPress',
-    download_url='https://github.com/ChangLabSNU/VaxPress/releases',
-    long_description=open('README.md').read(),
-    long_description_content_type='text/markdown',
-    keywords=[
-        'mRNA vaccine',
-        'messenger RNA',
-        'codon optimization'
-    ],
-    license='MIT',
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Environment :: Console',
-        'Intended Audience :: Healthcare Industry',
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: POSIX',
-        'Programming Language :: Python :: 3 :: Only',
-        'Topic :: Scientific/Engineering :: Bio-Informatics',
-    ],
-    packages=['vaxpress', 'vaxpress.scoring', 'vaxpress.data'],
-    package_data={'vaxpress': 
-                  ['report_template/*',
-                   'utils/*',
-                   ]
-                },
-
     ext_modules = ext_modules,
-
     cmdclass = {'build_ext': build_ext},
-
-    data_files=[('share/vaxpress/examples',
-        ['examples/count_homotrimers.py', 'examples/restriction_site.py',
-         'examples/adenosine_in_stems.py'])],
-    entry_points={
-        'console_scripts': [
-            'vaxpress = vaxpress.__main__:run_vaxpress',
-        ],
-    },
-
-    install_requires=[
-        'biopython >= 1.5',
-        'numpy >= 1.15',
-        'pandas >= 2.0',
-        'pytrf >= 1.0.1',
-        #'rpy2 >= 3.0', # required for iCodon
-        'ViennaRNA >= 2.4',
-        'tqdm >= 4.0',
-        'tabulate >= 0.9',
-        'Jinja2 >= 3.1',
-        'plotly >= 5.0',
-        'pylru >= 1.2',
-    ],
-    extras_require={
-        'nonfree': ['linearfold-unofficial'],
-    },
 )

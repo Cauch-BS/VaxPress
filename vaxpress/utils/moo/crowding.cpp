@@ -9,7 +9,7 @@ original paper by Deb et al. (2002) titled
 #include <vector>
 #include <algorithm>
 #include <limits>
-#include "individual.h"
+#include "individual.hpp"
 
 using namespace std;
 
@@ -30,7 +30,7 @@ void crowding_distance(vector<individual>& population,
     */
     int n = front.size(); // l = |front|
     // complexity O(M * Nlog(N))
-    for (int m = 0; m < population[0].objectives.size(); ++m) { // for each m in objectives
+    for (size_t m = 0; m < population[0].objectives.size(); ++m) { // for each m in objectives
         sort(front.begin(), front.end(), [&](int a, int b) {
             return population[a].objectives[m] < population[b].objectives[m];
         }); // sort front by objective [m] 

@@ -6,19 +6,19 @@ original paper by Deb et al. (2002) titled
 //The stucture for the code is as follows
 #include <vector>
 #include <algorithm>
-#include "individual.h"
+#include "individual.hpp"
 /*
 1. Non-Dominated Sorting
 We select population above a certain objective threshold. 
 */
-#include "ndsort.h"
+#include "ndsort.cpp"
 /* 
 2. Crowding Distance
 Within the population selected with non-dominated sorting, 
 sort each front with crowding distance. 
 This forms the new population
 */
-#include "crowding.h"
+#include "crowding.cpp"
 /*
 3. NSGA-II
 The main function that combines the above two functions
@@ -43,21 +43,25 @@ vector<individual> nsga2(vector<individual>& population, int population_size) {
     new_population.reserve(population_size);
     vector<vector<int>> fronts = non_dominated_argsort(population); 
     // fronts = non_dominated_argsort(population)
-    int i = 0; // i = 0
-    while (new_population.size() + fronts[i].size() <= population_size) { // while |new_population| + |fronts[i]| <= population_size
+    size_t i = 0; // i = 0
+    while (static_cast<int>(new_population.size() + fronts[i].size())
+            <= population_size) { // while |new_population| + |fronts[i]| <= population_size
         crowding_distance(population, fronts[i]); // crowding_distance(population, fronts[i])
         // new_population += fronts[i]
         for (int idx: fronts[i]) {
             new_population.push_back(population[idx]);
         }
-        i++ ;
+        ++i ;
+        if (i >= fronts.size()) {
+            break;
+        }
     }
 
     sort(fronts[i].begin(), fronts[i].end(), [&](int a, int b) {
         return crowd_compare(population[a], population[b]);
     }); // sort(fronts[i] by crowding_distance)
 
-    for(int j = 0; j < population_size - new_population.size(); ++j) {
+    for(size_t j = 0; j < population_size - new_population.size(); ++j) {
         new_population.push_back(population[fronts[i][j]]);
     }
     // new_population += fronts[i][:population_size - |new_population|]

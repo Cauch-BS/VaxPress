@@ -7,14 +7,14 @@ original paper by Deb et al. (2002) titled
 #define NDSORT_H
 
 #include <vector>
-#include "individual.h"
+#include "individual.hpp"
 
 using namespace std;
 
 bool dominates(const individual& a, const individual& b) {
     // complexity: O(M) where M is the number of objectives
     bool one_better = false; // assume a dominates b
-    for (int i = 0; i < a.objectives.size(); ++i) {
+    for (size_t i = 0; i < a.objectives.size(); ++i) {
         if (a.objectives[i] < b.objectives[i]) {
             return false; // a does not dominate b, return false
         } else if (a.objectives[i] > b.objectives[i]) {
@@ -44,8 +44,8 @@ vector<vector<int>> non_dominated_argsort(vector<individual>& population) {
             add p to front(0)
     */
 
-    for (int i = 0; i < population.size(); ++i) { // for each p in population
-        for (int j = 0; j < population.size(); ++j) { // for each q in population
+    for (size_t i = 0; i < population.size(); ++i) { // for each p in population
+        for (size_t j = 0; j < population.size(); ++j) { // for each q in population
             if (i == j) continue; // skip if p == q
 
             bool i_dominates_j = dominates(population[i], population[j]);
@@ -85,9 +85,9 @@ vector<vector<int>> non_dominated_argsort(vector<individual>& population) {
     int i = 0;
     while (!fronts[i].empty()) {
         vector<int> next_front;
-        for (int j = 0; j < fronts[i].size(); ++j) { 
+        for (size_t j = 0; j < fronts[i].size(); ++j) { 
             // for each p in front(i)
-            for (int k = 0; k < population[fronts[i][j]].dominated_solutions.size(); ++k) {
+            for (size_t k = 0; k < population[fronts[i][j]].dominated_solutions.size(); ++k) {
                 int q = population[fronts[i][j]].dominated_solutions[k]; // for each q in p's dominated_solutions
                 population[q].domination_count--; // decrement q's domination_count
                 if (population[q].domination_count == 0) { // if q's domination_count == 0

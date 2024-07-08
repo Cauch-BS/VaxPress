@@ -1,3 +1,60 @@
+[project]
+name = "vaxpress"
+version = "0.9"
+description = "Codon Optimizer for mRNA Vaccine Design"
+authors = [
+    {name = "Hyeshik Chang", email = "hyeshik@snu.ac.kr"},
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+keywords = ["mRNA vaccine", "messenger RNA", "codon optimization"]
+dependencies = [
+    "biopython >= 1.5",
+    "numpy >= 1.15",
+    "pandas >= 2.0",
+    "pytrf >= 1.0.1",
+    "ViennaRNA >= 2.4",
+    "tqdm >= 4.0",
+    "tabulate >= 0.9",
+    "Jinja2 >= 3.1",
+    "plotly >= 5.0",
+    "pylru >= 1.2",
+]
+
+[project.optional-dependencies]
+nonfree = ["linearfold-unofficial"]
+
+[project.urls]
+Homepage = "https://github.com/ChangLabSNU/VaxPress"
+Download = "https://github.com/ChangLabSNU/VaxPress/releases"
+
+[project.scripts]
+vaxpress = "vaxpress.__main__:run_vaxpress"
+
+[tool.setuptools]
+package-data = {vaxpress = ["report_template/*"]}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vaxpress*"]
+
+[tool.setuptools.data-files]
+"share/vaxpress/examples" = [
+    "examples/count_homotrimers.py",
+    "examples/restriction_site.py",
+    "examples/adenosine_in_stems.py"
+]
+
 [build-system]
-requires = ["setuptools>=40", "wheel", "pybind11"]
+requires = ["setuptools >= 40.8.0", "wheel", "pybind11"]
 build-backend = "setuptools.build_meta"
