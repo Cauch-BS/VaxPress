@@ -37,7 +37,7 @@ class ScoringFunction(abc.ABC):
     uses_folding = False
 
     # If true, score() method is called with a list of base pairing probabilities
-    uses_basepairing = False
+    uses_basepairing_prob = False
 
     # If True, annotate_sequence() or evaluate_local() is called even when
     # the weight is zero.

@@ -5,7 +5,7 @@ import repeats
 class RepeatsFitness(ScoringFunction):
     name = 'remote_repeats'
     description = 'Remote Repeats'
-    priority = 35
+    priority = 61
 
     arguments = [
         ('weight',
