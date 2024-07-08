@@ -294,7 +294,7 @@ class CDSEvolutionChamber:
             if self.execopts.n_iterations == 0:
                 # Only the initial sequence is evaluated
                 self.flatten_seqs = [''.join(self.population[0])]
-                total_scores, scores, metrics, foldings = self.seqeval.evaluate(
+                total_scores, scores, metrics, foldings, pairingprobs = self.seqeval.evaluate(
                                                     self.flatten_seqs, executor)
                 if total_scores is None:
                     error_code = 1
@@ -312,7 +312,7 @@ class CDSEvolutionChamber:
                 except StopIteration:
                     break
 
-                total_scores, scores, metrics, foldings = self.seqeval.evaluate(
+                total_scores, scores, metrics, foldings, pairingprobs = self.seqeval.evaluate(
                                                     self.flatten_seqs, executor)
                 if total_scores is None:
                     # Termination due to errors from one or more scoring functions
@@ -327,6 +327,7 @@ class CDSEvolutionChamber:
                 survivor_indices = ind_sorted[:n_survivors]
                 survivors = [self.population[i] for i in survivor_indices]
                 survivor_foldings = [foldings[i] for i in survivor_indices]
+                survivor_bpps = [pairingprobs[i] for i in survivor_indices]
                 self.best_scores.append(total_scores[ind_sorted[0]])
 
                 # Write the evaluation result of the initial sequence in

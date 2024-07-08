@@ -26,9 +26,11 @@
 import sys
 import re
 import pylru
+import numpy as np
 from tqdm import tqdm
 from concurrent import futures
 from collections import Counter
+from scipy import sparse
 from .log import hbar_stars, log
 
 
@@ -106,10 +108,37 @@ class FoldEvaluator:
 
         return ''.join(folding), newstems
 
+class PairingProbEvaluator:
+    def __init__(self):
+        self.initialize()
+    
+    def initialize(self):
+        try:
+            import linearpartition
+        except ImportError:
+            raise ImportError('LinearPartition module is not available. Try "'
+                              'pip install linearpartition-unofficial" to install.')
+        self._pairing_prob = linearpartition.partition
+    
+    def __call__(self, seq):
+        bpmtx, _ = self._pairing_prob(seq)
+        pi_coarray = self.get_pairingprobs(bpmtx, seq)
+
+        return {'pi_array': pi_coarray}
+    
+    @staticmethod
+    def get_pairingprobs(bpmtx, seq):
+        # returns scipy sparse matrix (coo_array)
+        I = bpmtx['i']
+        J = bpmtx['j']
+        prob = bpmtx['prob']
+        A = sparse.coo_array((prob, (I, J)), shape=(len(seq), len(seq)))
+        return (A+A.T)
 
 class SequenceEvaluator:
 
     folding_cache_size = 8192
+    bpp_cache_size = 8192
 
     def __init__(self, scoring_funcs, scoreopts, execopts, mutantgen, species,
                  length_cds, quiet):
@@ -127,10 +156,13 @@ class SequenceEvaluator:
 
     def initialize(self):
         self.foldeval = FoldEvaluator(self.execopts.folding_engine)
+        self.bpp_eval = PairingProbEvaluator()
         self.folding_cache = pylru.lrucache(self.folding_cache_size)
+        self.bpp_cache = pylru.lrucache(self.bpp_cache_size)
 
         self.scorefuncs_nofolding = []
         self.scorefuncs_folding = []
+        self.scorefuncs_bpp =[]
         self.annotationfuncs = []
         self.penalty_metric_flags = {}
 
@@ -162,6 +194,8 @@ class SequenceEvaluator:
 
             if cls.uses_folding:
                 self.scorefuncs_folding.append(scorefunc_inst)
+            elif cls.uses_basepairing_prob:
+                self.scorefuncs_bpp.append(scorefunc_inst)       
             else:
                 self.scorefuncs_nofolding.append(scorefunc_inst)
 
@@ -173,17 +207,23 @@ class SequenceEvaluator:
 
             if not sess.errors:
                 total_scores = [sum(s.values()) for s in sess.scores]
-                return total_scores, sess.scores, sess.metrics, sess.foldings
+                return total_scores, sess.scores, sess.metrics, sess.foldings, sess.pairingprobs
             else:
-                return None, None, None, None
+                return None, None, None, None, None
 
     def get_folding(self, seq):
         if seq not in self.folding_cache:
             self.folding_cache[seq] = self.foldeval(seq)
         return self.folding_cache[seq]
+    
+    def get_pairing_prob(self, seq):
+        if seq not in self.bpp_cache:
+            self.bpp_cache[seq] = self.bpp_eval(seq)
+        return self.bpp_cache[seq]
 
     def prepare_evaluation_data(self, seq):
         folding = self.get_folding(seq)
+        pairingprob = self.get_pairing_prob(seq)
 
         seqevals = {}
         seqevals['local-metrics'] = localmet = {}
@@ -191,12 +231,16 @@ class SequenceEvaluator:
             if hasattr(fun, 'evaluate_local'):
                 if fun.uses_folding:
                     localmet.update(fun.evaluate_local(seq, folding))
+                elif fun.uses_basepairing_prob:
+                    localmet.update(fun.evaluate_local(seq, pairingprob))
                 else:
                     localmet.update(fun.evaluate_local(seq))
 
             if hasattr(fun, 'annotate_sequence'):
                 if fun.uses_folding:
                     seqevals.update(fun.annotate_sequence(seq, folding))
+                elif fun.uses_basepairing_prob:
+                    seqevals.update(fun.annotate_sequence(seq, pairingprob))
                 else:
                     seqevals.update(fun.annotate_sequence(seq))
 
@@ -213,15 +257,21 @@ class SequenceEvaluationSession:
         self.scores = [{} for i in range(len(seqs))]
         self.metrics = [{} for i in range(len(seqs))]
         self.foldings = [None] * len(seqs)
+        self.pairingprobs = [None] * len(seqs)
         self.errors = []
 
         self.folding_cache = evaluator.folding_cache
         self.foldings_remaining = len(seqs)
         self.foldeval = evaluator.foldeval
 
+        self.bpp_cache = evaluator.bpp_cache
+        self.bpps_remaining = len(seqs)
+        self.bpp_eval = evaluator.bpp_eval
+
         self.num_tasks = (
             len(evaluator.scorefuncs_folding) +
             len(evaluator.scorefuncs_nofolding) +
+            len(evaluator.scorefuncs_bpp) + 
             len(seqs))
 
         self.pbar = None
@@ -229,6 +279,7 @@ class SequenceEvaluationSession:
 
         self.scorefuncs_folding = evaluator.scorefuncs_folding
         self.scorefuncs_nofolding = evaluator.scorefuncs_nofolding
+        self.scorefuncs_bpp = evaluator.scorefuncs_bpp
         self.annotationfuncs = evaluator.annotationfuncs
     
     def __enter__(self):
@@ -245,7 +296,24 @@ class SequenceEvaluationSession:
     def evaluate(self) -> None:
         jobs = set()
 
-        # Secondary structure prediction is the first set of tasks.
+        # First, base pairing probability is calculated.
+        for i, seq in enumerate(self.seqs):
+            if self.errors:
+                continue
+
+            if seq in self.bpp_cache:
+                self.pairingprobs[i] = self.bpp_cache[seq]
+                self.bpps_remaining -= 1
+                if self.pbar is not None:
+                    self.pbar.update()
+                continue
+
+            future = self.executor.submit(self.bpp_eval, seq)
+            future._seqidx = i
+            future._type = 'bpp'
+            jobs.add(future)
+
+        # Secondary structure prediction is the second set of tasks.
         for i, seq in enumerate(self.seqs):
             if self.errors: # skip remaining tasks on error
                 continue
@@ -263,7 +331,7 @@ class SequenceEvaluationSession:
             jobs.add(future)
 
         # Then, scoring functions that does not require folding are executed.
-        for scorefunc in self.scorefuncs_nofolding:
+        for scorefunc in self.scorefuncs_nofolding: # no folding, no bpp
             if self.errors:
                 continue
 
@@ -272,12 +340,15 @@ class SequenceEvaluationSession:
             jobs.add(future)
 
         # Wait until all folding tasks are finished.
-        while jobs and not self.errors and self.foldings_remaining > 0:
+        while jobs and not self.errors and (self.foldings_remaining > 0
+                                            or self.bpps_remaining > 0):
             done, jobs = futures.wait(jobs, timeout=0.1,
                                       return_when=futures.FIRST_COMPLETED)
             for future in done:
                 if future._type == 'folding':
                     self.collect_folding(future)
+                elif future._type == 'bpp':
+                    self.collect_pairingprob(future)
                 elif future._type == 'scoring':
                     self.collect_scores(future)
 
@@ -288,6 +359,15 @@ class SequenceEvaluationSession:
 
             future = self.executor.submit(scorefunc, self.seqs,
                                           self.foldings)
+            future._type = 'scoring'
+            jobs.add(future)
+        
+        for scorefunc in self.scorefuncs_bpp:
+            if self.errors:
+                continue
+
+            future = self.executor.submit(scorefunc, self.seqs,
+                                          self.pairingprobs)
             future._type = 'scoring'
             jobs.add(future)
 
@@ -327,6 +407,25 @@ class SequenceEvaluationSession:
             assert len(updates) == len(self.metrics)
             for s, u in zip(self.metrics, updates):
                 s[k] = u
+    
+    def collect_pairingprob(self, future):
+        try:
+            pairingprob = future.result()
+            if pairingprob is None:
+                self.errors.append('KeyboardInterrupt')
+                if self.pbar is not None:
+                    self.pbar.close()
+                self.pbar = None
+                return
+        except Exception as exc:
+            return self.handle_exception(exc)
+        i = future._seqidx
+        self.pairingprobs[i] = pairingprob
+        self.bpp_cache[self.seqs[i]] = pairingprob
+        self.bpps_remaining -= 1
+
+        if self.pbar is not None:
+            self.pbar.update()
 
     def collect_folding(self, future):
         try:
