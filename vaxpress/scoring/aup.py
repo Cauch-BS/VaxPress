@@ -33,12 +33,12 @@ class PairingProbFitness(ScoringFunction):
         weighted_aups = []
         weights = np.array([self.a_weight, 1, 1, self.u_weight]) # ACGU
         for seq, pairingprob in zip(seqs, pairingprobs):
-            Pi_cooarray = pairingprob['Pi_array']
-            Pi_array = Pi_cooarray.sum(axis=0)
+            pi_cooarray = pairingprob['pi_array']
+            pi_array = pi_cooarray.sum(axis=0)
             seqindex = np.frombuffer(seq.encode().translate(self.trans_table), dtype=np.uint8)
             # map weights to index
             wi = np.choose(seqindex, weights)
-            xi = 1.0 - Pi_array
+            xi = 1.0 - pi_array
             weighted_aup = np.average(xi, weights=wi)
             weighted_aups.append(weighted_aup)
         scores = [weighted_aup * self.weight for weighted_aup in weighted_aups]
@@ -46,10 +46,10 @@ class PairingProbFitness(ScoringFunction):
 
     def annotate_sequence(self, seq, pairingprob):
         weights = np.array([self.a_weight, 1, 1, self.u_weight])
-        Pi_cooarray = pairingprob['Pi_array']
-        Pi_array = Pi_cooarray.sum(axis=0)
+        pi_cooarray = pairingprob['pi_array']
+        pi_array = pi_cooarray.sum(axis=0)
         seqindex = np.frombuffer(seq.encode().translate(self.trans_table), dtype=np.uint8)
         wi = np.choose(seqindex, weights)
-        xi = 1 - Pi_array
+        xi = 1 - pi_array
         weighted_aup = np.average(xi, weights=wi)
         return {'weighted_aup': weighted_aup, 'aup': np.average(xi)}
