@@ -29,7 +29,11 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 ext_modules = [
     Pybind11Extension(
         'repeats',
-        ["vaxpress/utils/remote_repeats.cpp"]
+        ["vaxpress/utils/scoring/remote_repeats.cpp"]
+    ),
+    Pybind11Extension(
+        'nsga2',
+        ["vaxpress/utils/moo/nsga2.cpp"]
     )
 ]
 
