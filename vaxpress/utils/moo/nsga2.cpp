@@ -1,30 +1,36 @@
-/*The algorithm is based on the
-original paper by Deb et al. (2002) titled 
-"A Fast and Elitist Multiobjective Genetic Algorithm: NSGA-II
-*/
+/**
+ * @file nsga2.cpp
+ * @brief Implementation of the NSGA-II algorithm.
+ * 
+ * The algorithm is based on the original paper by Deb et al. (2002) titled 
+ * "A Fast and Elitist Multiobjective Genetic Algorithm: NSGA-II".
+ * 
+ * The structure of the code is as follows:
+ * 1. Non-Dominated Sorting: Select population above a certain objective threshold.
+ * 2. Crowding Distance: Sort each front with crowding distance within the selected population.
+ * 3. NSGA-II: The main function that combines the above two functions.
+ * 
+ * This file also includes the necessary headers and defines the NSGA-II algorithm as a Python module.
+ */
 
-//The stucture for the code is as follows
 #include <vector>
 #include <algorithm>
 #include "individual.hpp"
-/*
-1. Non-Dominated Sorting
-We select population above a certain objective threshold. 
-*/
 #include "ndsort.cpp"
-/* 
-2. Crowding Distance
-Within the population selected with non-dominated sorting, 
-sort each front with crowding distance. 
-This forms the new population
-*/
 #include "crowding.cpp"
-/*
-3. NSGA-II
-The main function that combines the above two functions
-Export this function to Python
-*/
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/complex.h>
+
+using namespace std;
+
+/**
+ * @brief Runs the NSGA-II algorithm.
+ * 
+ * @param population The initial population of individuals.
+ * @param population_size The desired size of the new population.
+ * @return The new population of individuals.
+ */
 
 //For debugging purposes
 // #include <iostream>
