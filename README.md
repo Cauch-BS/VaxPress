@@ -49,6 +49,25 @@ working installations of *R,* *rpy2* (version >= 3.0) and
 *iCodon.*  For detailed installation instructions, visit
 [iCodon's GitHub page](https://github.com/santiago1234/iCodon/).
 
+#### IDT Complexity Score
+
+If you wish to use the gBlocks IDT complexity score, as accessible at
+the [IDT site](https://sg.idtdna.com/site/order/gblockentry) use the argument
+`--idt-complexity-weight` in the fitness function and export your personal
+details as environmental variables. For example if you are using a UNIX based
+operating system (such as Linux, MacOS) you can use the following commands:
+
+```bash
+export IDT_USER='your_IDT_username'
+export IDT_PASSWD='your_IDT_password'
+export IDT_CLIENT'your_IDT_client_id'
+export IDT_API = 'your_IDT_client_secret'
+```
+
+where `'your_IDT_username'` should be replaced with your username. 
+
+More information on how to use the IDT API is available at [SciTools API site](https://sg.idtdna.com/pages/tools/apidoc). Note the maximum number of allowed API requests per minute is 500, so it is generally not recommended that you use a population greater than 500 when using the IDT compleity score. 
+
 ### Conda
 
 Alternatively, you may also install VaxPress via a conda package:
