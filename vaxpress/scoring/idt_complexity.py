@@ -27,6 +27,7 @@
 import os
 import asyncio
 import aiohttp
+import threading
 from time import time
 from requests import post
 from requests.auth import HTTPBasicAuth
@@ -34,8 +35,28 @@ from typing import Dict, List
 from . import ScoringFunction
 from ..sequence import Sequence
 
+thread_lock = threading.Lock()
+
 TOKEN_GEN_TIME = 0
+ITERATION = 0
 TOKEN = ''
+
+class RateLimiter:
+    def __init__(self, max_requests: int, time_interval: int) -> None:
+        self.max_requests = max_requests
+        self.time_interval = time_interval
+        self.semaphore = asyncio.Semaphore(max_requests)
+        self.calls = []
+
+    async def acquire(self):
+        await self.semaphore.acquire()
+        current_time = time.time()
+        if self.calls and current_time - self.calls[0] > self.time_interval:
+            self.calls = [call for call in self.calls if current_time - call < self.time_interval]
+        self.calls.append(current_time)
+    
+    def release(self):
+        self.semaphore.release()
 
 class IDTComplexity(ScoringFunction):
     '''Scoring function for complexity score from IDT.'''
@@ -45,8 +66,12 @@ class IDTComplexity(ScoringFunction):
     arguments = [
         ('weight',
          dict(type=float, default=1.0, metavar='WEIGHT',
-              help='scoring weight for remote repeats (default: 1.0)'))
+              help='scoring weight for remote repeats (default: 1.0)')),
+        ('interval',
+         dict(type=int, default=11, metavar='INTERVAL',
+              help='Iteration Interval For  (default: 11)')),
     ]
+
 
     penalty_metric_flags = {'idt_complexity': 'i_comp'}
     
@@ -57,18 +82,25 @@ class IDTComplexity(ScoringFunction):
     _MIN_LEN = 125 # Minimum length of sequences to be considered by the IDT API
     _MAX_SEQ = 99 # Maximum number of sequences that can be accessed at once
     _MAX_REQ = 500 # Maximum number of requests that can be sent to the API server. 
+    _N_WORKERS = 100 # Number of workers to send requests to the API server
+    _MAX_RETRIES = 5 # Maximum number of retries for a request
     _TOKEN_LIFE = 3200 # Number of seconds before the token expires
 
-    def __init__(self, weight, min_length, _length_cds) -> None:
+    def __init__(self, weight, interval, _length_cds) -> None:
         self.weight = weight 
-        self.min_length = min_length
+        self.interval = interval
         self.username = os.environ.get('IDT_USER', None)
         self.password = os.environ.get('IDT_PASSWD', None)
         self.client_id = os.environ.get('IDT_CLIENT', None)
         self.client_secret = os.environ.get('IDT_API', None)
         self.priority = 37
-        global TOKEN_GEN_TIME, TOKEN
-        self.token = self._get_access_token() if int(time()) - TOKEN_GEN_TIME > self._TOKEN_LIFE else TOKEN
+        global TOKEN_GEN_TIME, TOKEN, ITERATION
+        with thread_lock:
+            self.iteration_count = ITERATION
+            if int(time()) - TOKEN_GEN_TIME > self._TOKEN_LIFE:
+                self.token = self._get_access_token() 
+            else: 
+                self.token = TOKEN
     
     def _get_access_token(self) -> str:
         """Get access token for IDT API (see: https://www.idtdna.com/pages/tools/apidoc)
@@ -87,8 +119,9 @@ class IDTComplexity(ScoringFunction):
 
         if 'access_token' in result.json():
             global TOKEN_GEN_TIME, TOKEN
-            TOKEN_GEN_TIME = int(time())
-            TOKEN = result.json()['access_token']
+            with thread_lock:
+                TOKEN_GEN_TIME = int(time())
+                TOKEN = result.json()['access_token']
             return result.json()['access_token']
         raise ValueError("Error in response from IDT API. Please check credentials.")
     
@@ -109,11 +142,18 @@ class IDTComplexity(ScoringFunction):
     
     async def _send_request(self, session, block: List[Dict]) -> List[Dict]:
         "Helper function to send an asynchronous API request to IDT."
-        async with session.post(self._SCORE_URL, json =  block) as resp:
-            resp_list = await resp.json()
-            return resp_list
+        for attempt in range(self._MAX_RETRIES):
+            try:
+                async with session.post(self._SCORE_URL, json=block, timeout = self._TIMEOUT) as response:
+                    response.raise_for_status()
+                    return await response.json()
+            except (aiohttp.ClientError, asyncio.TimeoutError) as error:
+                if attempt < self._MAX_RETRIES - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    raise error
     
-    async def scoring(self, seqs: List[str]) -> List[int]:
+    async def scoring(self, seqs: List[str]):
         """Calculate the complexity score for a given sequence from the IDT API.
         This system uses the gBlock API, which is intended for sequences between 125 and 3000bp in length.
         Sequences not within this range will throw an exception.
@@ -139,36 +179,53 @@ class IDTComplexity(ScoringFunction):
         block_query = [
             queries[i:i + self._MAX_SEQ] for i in range(0, len(queries), self._MAX_REQ)
         ]
-        limit = self._MAX_REQ # Maximum number of requests that can be done every minute is 500.
+
+        queue = asyncio.Queue()
+        results = []
+        rate_limiter = RateLimiter(self._MAX_REQ * 0.8, 60)
+
+        
+        async def worker(queue: asyncio.Queue, session: aiohttp.ClientSession, results) -> None:
+            while True:
+                block = await queue.get()
+                await rate_limiter.acquire()
+                try:
+                    result = await self._send_request(session, block)
+                    results.append(result)
+                finally:
+                    rate_limiter.release()
+                    queue.task_done()
 
         async with aiohttp.ClientSession(
-            headers = {"Authorization": f"Bearer {self.token}", 
-                       "Content-Type": "application/json; charset=utf-8"},
-            timeout = aiohttp.ClientTimeout(self._TIMEOUT)
-            ) as session:
-            tasks = []
+            headers = {"Authorization": f"Bearer {self.token}",
+                    "Content-Type": "application/json; charset=utf-8"}, 
+            connector = aiohttp.TCPConnector(limit = self._N_WORKERS))  as session:
+            workers = [asyncio.create_task(worker(queue, session, results))
+                    for _ in range(self._N_WORKERS)]
             for block in block_query:
-                tasks.append(self._send_request(session, block))
-                if len(tasks) > int(limit * 0.9):
-                    await asyncio.sleep(60)
-            
-            results = await asyncio.gather(*tasks)
+                await queue.put(block)
+            await queue.join()
+        
+        for worker in workers:
+            worker.cancel()
         
         return results
 
     def score(self, seqs):
         """Asynchronously calcualtes the complexity score for a given sequence from the IDT API."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            results = loop.run_until_complete(self.scoring(seqs))
-        finally:
-            loop.close()       
-        penalties = self.parse_score(results)
-        idt_complexity_score = [penalty * self.weight for penalty in penalties]
-
+        if self.iteration_count % self.interval == 0:
+            results = asyncio.run(self.scoring(seqs))
+            global penalties, idt_complexity_score
+            with thread_lock:
+                penalties = self.parse_score(results[0])
+                idt_complexity_score = [penalty * self.weight for penalty in penalties]
+        
         metrics = {'idt_complexity': penalties}
         scores = {'idt_complexity': idt_complexity_score}
+
+        with thread_lock:
+            global ITERATION
+            ITERATION += 1
 
         return scores, metrics
 

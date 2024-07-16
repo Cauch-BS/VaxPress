@@ -27,6 +27,7 @@ import numpy as np
 import time
 import sys
 import os
+import nsga2
 from textwrap import wrap
 from tabulate import tabulate
 from typing import Iterator, Dict, Any
@@ -40,7 +41,6 @@ from .crossover import BinaryCrossOver
 from .presets import dump_to_preset
 from .log import hbar, hbar_double, log
 from . import __version__
-from typing import Iterator, Dict, Any
 
 PROTEIN_ALPHABETS = 'ACDEFGHIKLMNPQRSTVWY' + "*"
 RNA_ALPHABETS = 'ACGU'
@@ -327,7 +327,7 @@ class CDSEvolutionChamber:
                 survivor_indices = ind_sorted[:n_survivors]
                 survivors = [self.population[i] for i in survivor_indices]
                 survivor_foldings = [foldings[i] for i in survivor_indices]
-                survivor_bpps = [pairingprobs[i] for i in survivor_indices]
+                survivor_bpps = [pairingprobs[i] for i in survivor_indices]  # noqa: F841
                 self.best_scores.append(total_scores[ind_sorted[0]])
 
                 # Write the evaluation result of the initial sequence in
@@ -363,6 +363,41 @@ class CDSEvolutionChamber:
                 yield {'iter_no': iter_no, 'error': error_code, 'time': timelogs}
 
         yield {'iter_no': -1, 'error': error_code, 'time': timelogs}
+    
+    def run_moo(self):
+        self.show_configuration()
+
+        timelogs = [time.time()]
+        n_survivors = self.execopts.n_survivors
+        last_winddown = 0
+        error_code = 0
+
+        with futures.ProcessPoolExecutor(max_workers=self.n_processes) as executor:
+            for i in range(self.execopts.n_iterations):
+                iter_no = i + 1
+                n_parents = len(self.population)
+
+                try:
+                    self.next_generation(i)
+                except StopIteration:
+                    break
+
+                total_scores, scores, metrics, foldings, pairingprobs = self.seqeval.evaluate_moo(
+                                                    self.flatten_seqs, executor)
+                
+                for score in total_scores:
+                    if score is None:
+                        # Termination due to errors from one or more scoring functions
+                        error_code = 1
+                        break
+                total_scores = [nsga2.ind(scores) for scores in total_scores]
+                survivor_indices = nsga2.nsga2(total_scores, n_survivors)
+                survivors = [self.population[i] for i in survivor_indices]
+                survivor_foldings = [foldings[i] for i in survivor_indices]
+                survivor_bpps = [pairingprobs[i] for i in survivor_indices]  # noqa: F841
+                self.best_scores.append(total_scores[survivor_indices[0]])
+        return 
+
 
     def prioritized_sort_by_parents(self, total_scores):
         bestindices = []

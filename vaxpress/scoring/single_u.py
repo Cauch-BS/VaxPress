@@ -1,5 +1,4 @@
 from vaxpress.scoring import ScoringFunction
-import numpy as np
 
 class UnpairedUridineFitness(ScoringFunction):
 
