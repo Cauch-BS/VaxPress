@@ -34,11 +34,51 @@ from scipy import sparse
 from .log import hbar_stars, log
 
 
-class FoldEvaluator:
+class Evaluator():
+    def __init__(self):
+        self.pat_find_loops = re.compile(r'\.{2,}')
+
+    @staticmethod
+    def find_stems(structure):
+        stack = []
+        stemgroups = []
+
+        for i, s in enumerate(structure):
+            if s == '(':
+                stack.append(i)
+            elif s == ')':
+                assert len(stack) >= 1
+                peer = stack.pop()
+                if (stemgroups and peer + 1 == stemgroups[-1][0][-1] and
+                        i - 1 == stemgroups[-1][1][-1]):
+                    stemgroups[-1][0].append(peer)
+                    stemgroups[-1][1].append(i)
+                else:
+                    stemgroups.append(([peer], [i]))
+
+        return stemgroups
+    
+    @staticmethod
+    def unfold_unstable_structure(folding, stems):
+        # TODO: This needs to be revised based on the thermodynamic model of RNA
+        # folding later.
+        lonepairs = [p for p in stems if len(p[0]) == 1]
+        if not lonepairs:
+            return folding, stems
+
+        folding = list(folding)
+        for p5, p3 in lonepairs:
+            folding[p5[0]] = '.'
+            folding[p3[0]] = '.'
+        newstems = [p for p in stems if len(p[0]) > 1]
+
+        return ''.join(folding), newstems
+
+class FoldEvaluator(Evaluator):
 
     def __init__(self, engine: str):
+        super().__init__()
         self.engine = engine
-        self.pat_find_loops = re.compile(r'\.{2,}')
         self.initialize()
 
     def initialize(self):
@@ -61,8 +101,8 @@ class FoldEvaluator:
 
     def __call__(self, seq):
         folding, mfe = self._fold(seq)
-        stems = self.find_stems(folding)
-        folding, stems = self.unfold_unstable_structure(folding, stems)
+        stems = Evaluator.find_stems(folding)
+        folding, stems = Evaluator.unfold_unstable_structure(folding, stems)
         loops = dict(Counter(map(len, self.pat_find_loops.findall(folding))))
 
         return {
@@ -72,44 +112,9 @@ class FoldEvaluator:
             'loops': loops,
         }
 
-    @staticmethod
-    def find_stems(structure):
-        stack = []
-        stemgroups = []
-
-        for i, s in enumerate(structure):
-            if s == '(':
-                stack.append(i)
-            elif s == ')':
-                assert len(stack) >= 1
-                peer = stack.pop()
-                if (stemgroups and peer + 1 == stemgroups[-1][0][-1] and
-                        i - 1 == stemgroups[-1][1][-1]):
-                    stemgroups[-1][0].append(peer)
-                    stemgroups[-1][1].append(i)
-                else:
-                    stemgroups.append(([peer], [i]))
-
-        return stemgroups
-
-    @staticmethod
-    def unfold_unstable_structure(folding, stems):
-        # TODO: This needs to be revised based on the thermodynamic model of RNA
-        # folding later.
-        lonepairs = [p for p in stems if len(p[0]) == 1]
-        if not lonepairs:
-            return folding, stems
-
-        folding = list(folding)
-        for p5, p3 in lonepairs:
-            folding[p5[0]] = '.'
-            folding[p3[0]] = '.'
-        newstems = [p for p in stems if len(p[0]) > 1]
-
-        return ''.join(folding), newstems
-
-class PairingProbEvaluator:
+class PairingProbEvaluator(Evaluator):
     def __init__(self):
+        super().__init__()
         self.initialize()
     
     def initialize(self):
@@ -121,10 +126,22 @@ class PairingProbEvaluator:
         self._pairing_prob = linearpartition.partition
     
     def __call__(self, seq):
-        bpmtx, _ = self._pairing_prob(seq)
+        pred = self._pairing_prob(seq)
+        bpmtx = pred['bpp']
+        fe = pred['free_energy']
+        mea = pred['structure']
         pi_coarray = self.get_pairingprobs(bpmtx, seq)
+        stems = Evaluator.find_stems(mea)
+        mea, stems = Evaluator.unfold_unstable_structure(mea, stems)
+        loops = dict(Counter(map(len, self.pat_find_loops.findall(mea))))
 
-        return {'pi_array': pi_coarray}
+        return {
+            'pi_array': pi_coarray,
+            'efe': fe, #efe = ensemble free energy
+            'folding': mea, #mea = maximum expected accuracy
+            'stems': stems,
+            'loops': loops,
+        }
     
     @staticmethod
     def get_pairingprobs(bpmtx, seq):
@@ -171,6 +188,17 @@ class SequenceEvaluator:
         }
 
         for funcname, cls in self.scoring_funcs.items():
+            global use_fold, use_mea
+            use_fold, use_mea = True, True
+            opts = self.scoreopts[funcname]
+            if 'mfe' in funcname:
+                if ('weight' in opts and opts['weight'] == 0):
+                    use_fold = False
+            if 'aup' in funcname:
+                if ('weight' in opts and opts['weight'] == 0):
+                    use_mea = False
+
+        for funcname, cls in self.scoring_funcs.items():
             funcoff = False
             opts = self.scoreopts[funcname]
             if (('weight' in opts and opts['weight'] == 0) or
@@ -192,9 +220,10 @@ class SequenceEvaluator:
             if funcoff:
                 continue
 
-            if cls.uses_folding:
+            if cls.uses_folding and use_fold:
                 self.scorefuncs_folding.append(scorefunc_inst)
-            elif cls.uses_basepairing_prob:
+            elif cls.uses_basepairing_prob and use_mea and (
+                not cls.uses_folding or not use_fold):
                 self.scorefuncs_bpp.append(scorefunc_inst)       
             else:
                 self.scorefuncs_nofolding.append(scorefunc_inst)
@@ -310,7 +339,7 @@ class SequenceEvaluationSession:
 
             future = self.executor.submit(self.bpp_eval, seq)
             future._seqidx = i
-            future._type = 'bpp'
+            future._type = 'partition'
             jobs.add(future)
 
         # Secondary structure prediction is the second set of tasks.
@@ -347,35 +376,38 @@ class SequenceEvaluationSession:
             for future in done:
                 if future._type == 'folding':
                     self.collect_folding(future)
-                elif future._type == 'bpp':
+                elif future._type == 'partition':
                     self.collect_pairingprob(future)
                 elif future._type == 'scoring':
                     self.collect_scores(future)
-
-        # Scoring functions requiring folding are executed.
-        for scorefunc in self.scorefuncs_folding:
-            if self.errors:
-                continue
-
-            future = self.executor.submit(scorefunc, self.seqs,
-                                          self.foldings)
-            future._type = 'scoring'
-            jobs.add(future)
         
+        # Scoring functions requiring base pairing probability are executed.
         for scorefunc in self.scorefuncs_bpp:
             if self.errors:
                 continue
 
             future = self.executor.submit(scorefunc, self.seqs,
-                                          self.pairingprobs)
+                                          pairingprobs = self.pairingprobs)
             future._type = 'scoring'
             jobs.add(future)
 
+        # Scoring functions requiring mfe are executed.
+        for scorefunc in self.scorefuncs_folding:
+            if self.errors:
+                continue
+
+            future = self.executor.submit(scorefunc, self.seqs,
+                                          foldings = self.foldings)
+            future._type = 'scoring'
+            jobs.add(future)
+        
         while jobs and not self.errors:
             done, jobs = futures.wait(jobs, timeout=0.1)
             for future in done:
                 if future._type == 'folding':
                     self.collect_folding(future)
+                elif future._type == 'partition':
+                    self.collect_pairingprob(future)
                 elif future._type == 'scoring':
                     self.collect_scores(future)
 

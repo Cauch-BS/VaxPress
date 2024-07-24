@@ -97,6 +97,7 @@ class DegScoreFitness(ScoringFunction):
     description = 'DegScore (Eterna Predicted Degradation Rate)'
     priority = 15
     uses_folding = True
+    uses_basepairing_prob = True
 
     arguments = [
         ('weight',
@@ -107,9 +108,16 @@ class DegScoreFitness(ScoringFunction):
     def __init__(self, weight, _length_cds):
         self.weight = -weight
 
-    def score(self, seqs, foldings):
-        degscores = [call_degscore(seq, fold['folding'])
-                     for seq, fold in zip(seqs, foldings)]
+    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):
+        if foldings:
+            degscores = [call_degscore(seq, fold['folding'])
+                        for seq, fold in zip(seqs, foldings)]
+        elif pairingprobs:
+            degscores = [call_degscore(seq, pairingprobs['folding'])
+                        for seq, fold in zip(seqs, foldings)]
+        else:
+            raise ValueError('No folding or pairing probability data is provided.')
+        
         weighted_scores = [s * self.weight for s in degscores]
         return {'degscore': weighted_scores}, {'degscore': degscores}
 

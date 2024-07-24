@@ -31,6 +31,7 @@ class LoopLengthFitness(ScoringFunction):
     description = 'RNA Folding (Loops)'
     priority = 41
     uses_folding = True
+    uses_basepairing_prob = True
 
     arguments = [
         ('weight', dict(metavar='WEIGHT',
@@ -45,15 +46,25 @@ class LoopLengthFitness(ScoringFunction):
         self.threshold = threshold
         self.weight = -weight / _length_cds
 
-    def score(self, seqs, foldings):
+    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):
         loop_lengths = []
         scores = []
-        for fold in foldings:
-            looplen = sum(length * count
-                          for length, count in fold['loops'].items()
-                          if length >= self.threshold)
-            loop_lengths.append(looplen)
-            scores.append(looplen * self.weight)
+        if foldings:
+            for fold in foldings:
+                looplen = sum(length * count
+                            for length, count in fold['loops'].items()
+                            if length >= self.threshold)
+                loop_lengths.append(looplen)
+                scores.append(looplen * self.weight)
+        elif pairingprobs:
+            for prob in pairingprobs:
+                looplen = sum(length * count
+                            for length, count in prob['loops'].items()
+                            if length >= self.threshold)
+                loop_lengths.append(looplen)
+                scores.append(looplen * self.weight)
+        else:
+            raise ValueError('No folding or pairing probability data is provided.')
 
         return {'loop': scores}, {'loop': loop_lengths}
 

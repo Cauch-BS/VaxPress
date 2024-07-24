@@ -32,6 +32,7 @@ class StartCodonStructureFitness(ScoringFunction):
     description = 'RNA Folding (Structure near Start Codon)'
     priority = 42
     uses_folding = True
+    uses_basepairing_prob = True
 
     arguments = [
         ('weight', dict(
@@ -51,17 +52,24 @@ class StartCodonStructureFitness(ScoringFunction):
         if weight != 0:
             self.penalty_metric_flags[self.name] = 's'
 
-    def score(self, seqs: str, foldings):
+    def score(self, seqs: str, foldings: dict = None, pairingprobs: dict = None):
         metrics = []
         scores = []
         start_at = len(Sequence(seqs[0], is_cds=False).utr5)
+        if foldings:
+            for fold in foldings:
+                start_structure = fold['folding'][start_at:(start_at + self.width)]
 
-        for fold in foldings:
-            start_structure = fold['folding'][start_at:(start_at + self.width)]
+                start_folded = start_structure.count('(') + start_structure.count(')')
+                metrics.append(start_folded)
+                scores.append(start_folded * self.weight)
+        elif pairingprobs:
+            for prob in pairingprobs:
+                start_structure = prob['folding'][start_at:(start_at + self.width)]
 
-            start_folded = start_structure.count('(') + start_structure.count(')')
-            metrics.append(start_folded)
-            scores.append(start_folded * self.weight)
+                start_folded = start_structure.count('(') + start_structure.count(')')
+                metrics.append(start_folded)
+                scores.append(start_folded * self.weight)
 
         return {'start_str': scores}, {'start_str': metrics}
 

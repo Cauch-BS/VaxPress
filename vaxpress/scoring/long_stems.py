@@ -31,6 +31,7 @@ class LongStemFitness(ScoringFunction):
     description = 'RNA Folding (Long Stems)'
     priority = 43
     uses_folding = True
+    uses_basepairing_prob = True
 
     arguments = [
         ('weight', dict(metavar='WEIGHT',
@@ -50,19 +51,27 @@ class LongStemFitness(ScoringFunction):
         if weight != 0:
             self.penalty_metric_flags[self.name] = 'l'
 
-    def score(self, seqs, foldings):
+    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):
         metrics = []
         scores = []
-
-        for fold in foldings:
-            stems = fold['stems']
-            longstems = sum(len(loc5) >= self.threshold for loc5, _ in stems)
-            metrics.append(longstems)
-            scores.append(longstems * self.weight)
+        if foldings:
+            for fold in foldings:
+                stems = fold['stems']
+                longstems = sum(len(loc_l) >= self.threshold for loc_l, _ in stems)
+                metrics.append(longstems)
+                scores.append(longstems * self.weight)
+        elif pairingprobs:
+            for prob in pairingprobs:
+                stems = prob['stems']
+                longstems = sum(len(loc_l) >= self.threshold for loc_l, _ in stems)
+                metrics.append(longstems)
+                scores.append(longstems * self.weight)
+        else:
+            raise ValueError('No folding or pairing probability data is provided.')
 
         return {'longstem': scores}, {'longstem': metrics}
 
     def annotate_sequence(self, seq, folding):
-        longstems = sum(len(loc5) >= self.threshold
-                        for loc5, _ in folding['stems'])
+        longstems = sum(len(loc_l) >= self.threshold
+                        for loc_l, _ in folding['stems'])
         return {'longstems': longstems}

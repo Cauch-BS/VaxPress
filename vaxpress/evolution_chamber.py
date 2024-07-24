@@ -37,7 +37,6 @@ from itertools import cycle
 from .mutant_generator import MutantGenerator, STOP
 from .sequence import Sequence
 from .sequence_evaluator import SequenceEvaluator
-from .crossover import BinaryCrossOver
 from .presets import dump_to_preset
 from .log import hbar, hbar_double, log
 from . import __version__
@@ -48,7 +47,6 @@ RNA_ALPHABETS = 'ACGU'
 ExecutionOptions = namedtuple('ExecutionOptions', [
     'n_iterations', 'n_population', 'n_survivors', 'initial_mutation_rate',
     'winddown_trigger', 'winddown_rate', 
-    'has_crossover', 'freq_crossover', 'crossover_prob', 'crossover_method',
     'output', 'command_line', 'overwrite',
     'seed', 'processes', 'random_initialization', 'conservative_start',
     'boost_loop_mutations', 'full_scan_interval', 'species', 'codon_table',
@@ -128,14 +126,6 @@ class CDSEvolutionChamber:
             if n is not None else '-' * length)
 
         self.mutation_rate = self.execopts.initial_mutation_rate
-        self.has_crossover = self.execopts.has_crossover
-        #this is the frequency with which crossover is performed
-        self.freq_crossover = self.execopts.freq_crossover if self.has_crossover else 0 
-        #this is the probability with which bases are exchanged if crossover is performed 
-        self.crossover_prob = self.execopts.crossover_prob if self.has_crossover else 0 
-        self.crossover_method = self.execopts.crossover_method if self.has_crossover else None
-        if self.crossover_method not in ('single', 'double', 'uniform', None):
-            raise ValueError('Invalid crossover method')
         self.full_scan_interval = self.execopts.full_scan_interval
         self.in_final_full_scan = False
 
@@ -219,37 +209,9 @@ class CDSEvolutionChamber:
         #population of the next generation
         n_nextgeneration = max(0, self.execopts.n_population - len(self.population))
 
-        #population of the next generation generated through crossover
-        n_withcrossover = int(2 * (n_nextgeneration * self.freq_crossover // 2))
-
-        last_crossover = 0
-
-        for _, parent_no, spouse_no in zip(
-                    range(0, n_withcrossover, 2),
-                    cycle(range(len(self.population[::2]))), 
-                    cycle(range(len(self.population[1::2]))),
-        ):
-            parent = self.population[parent_no]
-            spouse = self.population[spouse_no]
-
-            crossover = BinaryCrossOver(parent, spouse)
-            if self.crossover_method == 'single':
-                children = crossover.single_point_crossover(self.crossover_prob)
-            elif self.crossover_method == 'double':
-                children = crossover.two_point_crossover(self.crossover_prob)
-            elif self.crossover_method == 'uniform':
-                children = crossover.binomial_crossover(self.crossover_prob)
-            for child, num in zip(children, (parent_no, spouse_no)):
-                new_child = self.mutantgen.generate_mutant(child, self.mutation_rate) #child is mutated 
-                nextgeneration.append(new_child)
-                sources.append(num)
-            
-            last_crossover = spouse_no
-
         for parent_no, _ in zip(
-                    cycle(list(range(last_crossover, len(self.population))) + 
-                          list(range(last_crossover))), 
-                    range(n_withcrossover, n_nextgeneration)
+                    cycle(list(range(0, len(self.population)))), 
+                    range(0, n_nextgeneration)
                     ):
             
             parent, parent_folding = self.population[parent_no], self.population_foldings[parent_no]
@@ -364,41 +326,6 @@ class CDSEvolutionChamber:
 
         yield {'iter_no': -1, 'error': error_code, 'time': timelogs}
     
-    def run_moo(self):
-        self.show_configuration()
-
-        timelogs = [time.time()]
-        n_survivors = self.execopts.n_survivors
-        last_winddown = 0
-        error_code = 0
-
-        with futures.ProcessPoolExecutor(max_workers=self.n_processes) as executor:
-            for i in range(self.execopts.n_iterations):
-                iter_no = i + 1
-                n_parents = len(self.population)
-
-                try:
-                    self.next_generation(i)
-                except StopIteration:
-                    break
-
-                total_scores, scores, metrics, foldings, pairingprobs = self.seqeval.evaluate_moo(
-                                                    self.flatten_seqs, executor)
-                
-                for score in total_scores:
-                    if score is None:
-                        # Termination due to errors from one or more scoring functions
-                        error_code = 1
-                        break
-                total_scores = [nsga2.ind(scores) for scores in total_scores]
-                survivor_indices = nsga2.nsga2(total_scores, n_survivors)
-                survivors = [self.population[i] for i in survivor_indices]
-                survivor_foldings = [foldings[i] for i in survivor_indices]
-                survivor_bpps = [pairingprobs[i] for i in survivor_indices]  # noqa: F841
-                self.best_scores.append(total_scores[survivor_indices[0]])
-        return 
-
-
     def prioritized_sort_by_parents(self, total_scores):
         bestindices = []
 
