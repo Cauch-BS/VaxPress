@@ -187,9 +187,8 @@ class SequenceEvaluator:
             '_length_cds': self.length_cds,
         }
 
+        use_fold, use_mea = True, True
         for funcname, cls in self.scoring_funcs.items():
-            global use_fold, use_mea
-            use_fold, use_mea = True, True
             opts = self.scoreopts[funcname]
             if 'mfe' in funcname:
                 if ('weight' in opts and opts['weight'] == 0):
@@ -229,6 +228,10 @@ class SequenceEvaluator:
                 self.scorefuncs_nofolding.append(scorefunc_inst)
 
             self.penalty_metric_flags.update(cls.penalty_metric_flags)
+        # log.info('>>>>Scoring functions used:')
+        # log.info('\t Uses Folding: {}'.format(self.scorefuncs_folding))
+        # log.info('\t Uses Base Pairing Probability: {}'.format(self.scorefuncs_bpp))
+        # log.info('\t Does not use Folding: {}'.format(self.scorefuncs_nofolding))
 
     def evaluate(self, seqs, executor):
         with SequenceEvaluationSession(self, seqs, executor) as sess:
