@@ -27,7 +27,7 @@ import numpy as np
 import time
 import sys
 import os
-import nsga2
+#import vaxpress.nsga2
 from textwrap import wrap
 from tabulate import tabulate
 from typing import Iterator, Dict, Any
