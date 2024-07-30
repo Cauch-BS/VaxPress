@@ -43,13 +43,14 @@ Download = "https://github.com/ChangLabSNU/VaxPress/releases"
 
 [project.scripts]
 vaxpress = "vaxpress.__main__:run_vaxpress"
+vaxpress-polish = "vaxpress.utils.polish:polish"
 
 [tool.setuptools]
 package-data = {vaxpress = ["report_template/*"]}
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["vaxpress*"]
+include = ["vaxpress*", "vaxpress.utils.polish*"]
 
 [tool.setuptools.data-files]
 "share/vaxpress/examples" = [
