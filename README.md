@@ -68,6 +68,8 @@ where `'your_IDT_username'` should be replaced with your username.
 
 More information on how to use the IDT API is available at [SciTools API site](https://sg.idtdna.com/pages/tools/apidoc). Note the maximum number of allowed API requests per minute is 500, so it is generally not recommended that you use a population greater than 500 when using the IDT compleity score. 
 
+For more information as to how to use the IDT complexity score, see the **Usage** section. 
+
 ### Conda
 
 Alternatively, you may also install VaxPress via a conda package:
@@ -165,6 +167,67 @@ the following five files:
 - ``parameters.json``: Contains the parameters employed for the optimization.
   This file can be feeded to VaxPress with the `--preset` option to duplicate
   the set-up for other sequence.
+
+## Using VaxPress Polish
+
+To optimize VaxPress candidate sequences for production, the `vaxpress-polish` command can be used. There are two commands available for `vaxpress-polish`. The first is `find-complexity` and the second is `identify-alternatives`. Assuming you have activated your IDT account appropriately (for more information on this part, see the IDT complexity score section below insallation), you can use `find-complexity` to identify which parts of the sequence are increasing complexity. A complexity above 10 is considered too complex and will likely be costly to synthesize. Here is an example:
+
+```bash
+>>> vaxpress-polish find-complexity -i s901_temp.fasta
+
+Complexity score:
+ {
+   'Overall Repeat': {   'Message': 'One or more repeated sequences greater than 8 bases comprise '
+                                     '64% of the overall sequence. Solution: Redesign to reduce '
+                                     'the repeats to be less than 40% of the sequence.',
+                          'Score': 9.6}
+}
+```
+Meanwhile the `identify-alternatives` identifies codons which can be changed with minimal change in VaxPress scores. The way it does this is by focusing on unpaired bases. The corresponding change in CAI due to the change in codon is written next to the option given. Here is an example:
+
+```bash
+>>> vaxpress-polish identify-alternatives -i s901_temp.fasta --cds-start 75 --cds-end 2243 --roi-start 1481 --roi-end 1521
+ROI Sequence:  AAAGAGAGGCUCUGGGGAGGGCCGGGGAAGCCUGCUGACCU
+ROI Structure: ........))))))))).))))))))))...)).)))...)
+        1479 agG   -0.13
+        1479 CgC   -0.61
+        1479 CgG   -0.30
+        1479 CgU   -1.55
+           1482 aaA   -0.21
+              1485 Cga   -1.05
+              1485 CgC   -0.61
+              1485 CgG   -0.30
+              1485 CgU   -1.55
+              1485 agG   -0.13
+              1485 CgC   -0.61
+              1485 CgG   -0.30
+              1485 CgU   -1.55
+                                      1509 UCA   -0.48
+                                      1509 UCc   -0.19
+                                      1509 UCG   -2.29
+                                      1509 UCU   -0.22
+                                      1509 UCA   -0.48
+                                      1509 UCc   -0.19
+                                      1509 UCG   -2.29
+                                      1509 UCU   -0.22
+                                      1509 agU   -0.49
+                                      1509 UCA   -0.48
+                                      1509 UCG   -2.29
+                                      1509 UCU   -0.22
+                                         1512 cuA   -2.28
+                                         1512 cuC   -1.02
+                                         1512 cuU   -1.36
+                                         1512 UuA   -2.05
+                                               1518 acA   -0.11
+                                               1518 acG   -1.67
+                                               1518 acU   -0.32
+Results written to codon_polish_results.fasta
+```
+
+For the choice `1479 agG -0.13` this means that the codon starting from the 1479th base (`AGA`) can be exhanged fo `AGG` with a final CAI change of `-0.13`. 
+
+The default output (also modifiable through the `-o` option) is `codon_polish_results.fasta` which contains the changed secondary stucture and the changed sequence given that the codon option is altered. 
+
 
 # Citing VaxPress
 
