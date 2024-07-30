@@ -15,12 +15,11 @@ def find_complexity(input):
         for line in input:
             if line.startswith('>'):
                 continue
-            seq += line.strip().upper().replace('T','U')
+            seq += line.strip().upper().replace('U','T')
         return seq
     seq = read_as_dna(input)
-    click.echo(f"Sequence: {seq}")
     complexity = IDTComplexity()
-    click.echo(f"Complexity score: {complexity.scoring(seq)}")
+    click.echo(f"Complexity score: \n {complexity.score([seq])}")
 
 @polish.command()
 @click.option('--cds-start', type=int, required=True, default = 1,
@@ -54,5 +53,3 @@ def identify_alternatives(cds_start, cds_end, output, input, roi_start, roi_end)
     write_fasta(output, seq, structure, cds_start, cds_end, combinations)
     click.echo(f"Results written to {output.name}")
 
-if __name__ == '__main__':
-    polish()

@@ -1,7 +1,8 @@
 import os
+import pprint
 from requests import post
 from requests.auth import HTTPBasicAuth
-from typing import Dict, List
+from typing import Dict, List, Any, IO
 
 class IDTComplexity:
     '''Scoring function for complexity score from IDT.'''
@@ -70,3 +71,19 @@ class IDTComplexity:
             results.append(result)
         
         return results
+    
+    def score(self, seqs: List[str]) -> str:
+        score = self.scoring(seqs)[0][0]
+        violated = dict()
+        for dic in score:
+            if dic['IsViolated']:
+                violated[dic['Name']] = {
+                    'Message': dic['DisplayText'],
+                    'Score': dic['Score']
+                }
+        formatted = pprint.pformat(violated, indent = 4, width = 100)
+        if formatted.startswith('{') and formatted.endswith('}'):
+            formatted = '{\n' + formatted[1:-1] + '\n}'
+        return formatted
+
+

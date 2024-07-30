@@ -28,7 +28,6 @@ from ...data import codon_table
 from itertools import groupby
 import numpy as np
 import pandas as pd
-import click
 import RNA
 
 def setup_lookup_tables():
@@ -50,6 +49,7 @@ codon2aa = codon_table.standard_table
 synonymous_codons, aa2codons = setup_lookup_tables()
 
 def make_structure(input):
+    input.seek(0)
     seq = ''
     for line in input:
         if line.startswith('>'):
@@ -61,6 +61,7 @@ def make_structure(input):
     return seq, ss
 
 def load_sequence_structure(input):
+    input.seek(0)
     seq = []
     structure = []
     for line in input:
@@ -139,34 +140,3 @@ def write_fasta(output, seq, structure, cds_start, cds_end, combinations):
 
         output.write(altseq + '\n')
         output.write(structure + '\n')
-
-@click.command()
-@click.option('--cds-start', type=int, required=True,
-              help='Start position of CDS (in 1-based index)')
-@click.option('--cds-end', type=int, required=True,
-              help='End position of CDS (in 1-based index)')
-@click.option('--output', type=click.File('w'), default='codon_polish_results.fasta')
-@click.argument('input', type=click.File('r'))
-@click.argument('roi_start', type=int)
-@click.argument('roi_end', type=int)
-def main(cds_start, cds_end, output, input, roi_start, roi_end):
-    cds_start -= 1
-    roi_start -= 1
-
-    if cds_start < 0 or roi_start < 0:
-        raise ValueError('Invalid start position')
-    
-    if (cds_end - cds_start) % 3 != 0:
-        raise ValueError('Invalid CDS length')
-
-    if roi_start < cds_start or roi_end > cds_end:
-        raise ValueError('Region of interest is outside of CDS')
-
-    seq, structure = load_sequence_structure(input)
-
-    combinations = find_alternatives(seq, structure, cds_start, cds_end,
-                                     roi_start, roi_end)
-    write_fasta(output, seq, structure, cds_start, cds_end, combinations)
-
-if __name__ == '__main__':
-    main()
