@@ -18,8 +18,9 @@ def find_complexity(input):
             seq += line.strip().upper().replace('U','T')
         return seq
     seq = read_as_dna(input)
-    complexity = IDTComplexity()
-    click.echo(f"Complexity score: \n {complexity.score([seq])}")
+    score = IDTComplexity().score([seq])
+    click.echo(f"Total score: {score[0]}\n")
+    click.echo(f"Complexity score: \n {score[1]}")
 
 @polish.command()
 @click.option('--cds-start', type=int, required=True, default = 1,

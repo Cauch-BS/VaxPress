@@ -74,6 +74,7 @@ class IDTComplexity:
     
     def score(self, seqs: List[str]) -> str:
         score = self.scoring(seqs)[0][0]
+        total_score = 0
         violated = dict()
         for dic in score:
             if dic['IsViolated']:
@@ -81,9 +82,11 @@ class IDTComplexity:
                     'Message': dic['DisplayText'],
                     'Score': dic['Score']
                 }
+                total_score += dic['Score']
+
         formatted = pprint.pformat(violated, indent = 4, width = 100)
         if formatted.startswith('{') and formatted.endswith('}'):
             formatted = '{\n' + formatted[1:-1] + '\n}'
-        return formatted
+        return total_score, formatted
 
 
