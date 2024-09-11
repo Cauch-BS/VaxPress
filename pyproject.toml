@@ -2,11 +2,9 @@
 name = "vaxpress"
 version = "0.9"
 description = "Codon Optimizer for mRNA Vaccine Design"
-authors = [
-    {name = "Hyeshik Chang", email = "hyeshik@snu.ac.kr"},
-]
+authors = [{ name = "Hyeshik Chang", email = "hyeshik@snu.ac.kr" }]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -32,7 +30,7 @@ dependencies = [
     "Jinja2 >= 3.1",
     "plotly >= 5.0",
     "pylru >= 1.2",
-    "scipy >= 1.0"
+    "scipy >= 1.0",
 ]
 
 [project.optional-dependencies]
@@ -47,7 +45,7 @@ vaxpress = "vaxpress.__main__:run_vaxpress"
 vaxpress-polish = "vaxpress.utils.polish:polish"
 
 [tool.setuptools]
-package-data = {vaxpress = ["report_template/*"]}
+package-data = { vaxpress = ["report_template/*"] }
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -57,7 +55,7 @@ include = ["vaxpress*", "vaxpress.utils.polish*"]
 "share/vaxpress/examples" = [
     "examples/count_homotrimers.py",
     "examples/restriction_site.py",
-    "examples/adenosine_in_stems.py"
+    "examples/adenosine_in_stems.py",
 ]
 
 [build-system]

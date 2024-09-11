@@ -81,19 +81,19 @@ class IDTComplexity:
 
         return results
 
-    def score(self, seqs: List[str]) -> tuple[int, str]:
-        score = self.scoring(seqs)[0][0]
-        total_score = 0
-        violated = dict()
-        for dic in score:
-            if dic["IsViolated"]:
-                violated[dic["Name"]] = {
-                    "Message": dic["DisplayText"],
-                    "Score": dic["Score"],
-                }
-                total_score += dic["Score"]
-
-        formatted = pprint.pformat(violated, indent=4, width=100)
-        if formatted.startswith("{") and formatted.endswith("}"):
-            formatted = "{\n" + formatted[1:-1] + "\n}"
-        return total_score, formatted
+    def score(self, names: List[str], seqs: List[str]) -> dict[str, dict[str, object]]:
+        analyzed = dict()
+        scores = self.scoring(seqs)[0][:]
+        for name, score in zip(names, scores):
+            total_score = 0
+            violated = dict()
+            for dic in score:
+                if dic["IsViolated"]:
+                    violated[dic["Name"]] = {
+                        "Message": dic["DisplayText"],
+                        "Score": dic["Score"],
+                    }
+                    total_score += dic["Score"]
+            formatted = pprint.pformat(violated, indent=4, width=100)
+            analyzed[name] = {"Total Score": total_score, "Violated": formatted}
+        return analyzed

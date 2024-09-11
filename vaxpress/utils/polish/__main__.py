@@ -1,4 +1,6 @@
 import click
+from Bio.SeqIO import parse, to_dict
+
 from .polish_helper import (
     load_sequence_structure,
     find_alternatives,
@@ -18,17 +20,17 @@ def polish():
 @click.option("-i", "--input", type=click.File("r"), required=True)
 def find_complexity(input):
     def read_as_dna(input):
-        seq = ""
-        for line in input:
-            if line.startswith(">"):
-                continue
-            seq += line.strip().upper().replace("U", "T")
-        return seq
+        seqs = to_dict(parse(input, "fasta"))
+        return {
+            str(seq_id): str(seq.seq).replace("U", "T") for seq_id, seq in seqs.items()
+        }
 
-    seq = read_as_dna(input)
-    score = IDTComplexity().score([seq])
-    click.echo(f"Total score: {score[0]}\n")
-    click.echo(f"Complexity score: \n {score[1]}")
+    seqs = read_as_dna(input)
+    scores = IDTComplexity().score(seqs.keys(), seqs.values())
+    click.echo("Complexity scores: \n")
+    for name, scores in scores.items():
+        click.echo(f"{name} : {scores['Total Score']}")
+        click.echo(f"Violated rules: {scores['Violated']}")
 
 
 @polish.command()
