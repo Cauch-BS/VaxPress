@@ -510,8 +510,15 @@ class CDSEvolutionChamber:
         self.bestseq = "".join(self.population[0])
         fastapath = os.path.join(self.outputdir, "best-sequence.fasta")
         with open(fastapath, "w") as f:
-            print(f">{self.seq_description}", file=f)
+            print(f">{self.seq_description} (best variant)", file=f)
             print(*wrap(self.bestseq, width=self.fasta_line_width), sep="\n", file=f)
+            for i in range(1, len(self.population)):
+                print(f">{self.seq_description} (mutant {i})", file=f)
+                print(
+                    *wrap("".join(self.population[i]), width=self.fasta_line_width),
+                    sep="\n",
+                    file=f,
+                )
 
         # Save the parameters used for the optimization
         paramspath = os.path.join(self.outputdir, "parameters.json")

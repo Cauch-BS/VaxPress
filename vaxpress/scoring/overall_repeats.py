@@ -25,67 +25,68 @@
 
 from . import ScoringFunction
 from ..sequence import Sequence
-import pytrf
+from collections import defaultdict
 
 
-class TandemRepeatsFitness(ScoringFunction):
+def find_kmer_repeats_percentage(rna_seq, min_length=8):
+    kmer_count = defaultdict(int)
+    total_repeats = len(rna_seq) - min_length + 1
 
-    name = "t_repeats"
-    description = "Tandem Repeats"
-    priority = 60
+    for i in range(total_repeats):
+        forward_kmer = rna_seq[i : i + min_length]
+        kmer_count[forward_kmer] += 1
+        reverse_kmer = forward_kmer[::-1].translate(str.maketrans("AUCG", "UAGC"))
+        kmer_count[reverse_kmer] += 1
+
+    total_repeated_kmers = sum([v for v in kmer_count.values() if v > 1])
+    percentage_repeats = total_repeated_kmers / total_repeats
+    return percentage_repeats
+
+
+class OverallRepeatsFitness(ScoringFunction):
+
+    name = "o_repeats"
+    description = "Overall Repeats"
+    priority = 61
 
     arguments = [
         (
             "weight",
             dict(
                 type=float,
-                default=1.0,
+                default=5.0,
                 metavar="WEIGHT",
-                help="scoring weight for tandem repeats (default: 1.0)",
-            ),
-        ),
-        (
-            "min-repeats",
-            dict(
-                type=int,
-                default=2,
-                metavar="N",
-                help="minimum number of repeats to be considered as a tandem "
-                "repeat (default: 2)",
+                help="scoring weight for overall repeats (default: 5.0)",
             ),
         ),
         (
             "min-length",
             dict(
                 type=int,
-                default=10,
+                default=2,
                 metavar="LENGTH",
-                help="minimum length of repeats to be considered as a tandem "
-                "repeat (default: 10)",
+                help="minimum length of k-mer repeats to be considered"
+                "repeat (default: 8)",
             ),
         ),
     ]
 
-    penalty_metric_flags = {"t_repeat": "tr"}
+    penalty_metric_flags = {"o_repeat": "or"}
 
-    def __init__(self, weight, min_repeats, min_length, _length_cds):
-        self.weight = weight / _length_cds * -1000
-        self.min_repeats = min_repeats
+    def __init__(self, weight, min_length, _length_cds):
+        self.weight = weight
         self.min_length = min_length
 
     def score(self, seqs):
         replengths = []
         for seq in seqs:
             seq = seq[: -Sequence(seq).get_polyA()]
-            # print(seq[-10:])
-            repeats = pytrf.GTRFinder(
-                "name", seq, min_repeat=self.min_repeats, min_length=self.min_length
-            )
-            replengths.append(sum(r.length for r in repeats))
+            repeat_metrics = find_kmer_repeats_percentage(seq, self.min_length)
+            replengths.append(repeat_metrics)
 
-        repeat_score = [length * self.weight for length in replengths]
+        repeat_score = [metric * self.weight for metric in replengths]
 
-        metrics = {"t_repeat": replengths}
-        scores = {"t_repeat": repeat_score}
+        metrics = {"o_repeat": replengths}
+        scores = {"o_repeat": repeat_score}
 
         return scores, metrics
