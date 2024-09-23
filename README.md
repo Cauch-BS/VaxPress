@@ -228,6 +228,29 @@ For the choice `1479 agG -0.13` this means that the codon starting from the 1479
 
 The default output (also modifiable through the `-o` option) is `codon_polish_results.fasta` which contains the changed secondary stucture and the changed sequence given that the codon option is altered. 
 
+## Using Snakemake
+
+VaxPress can be run in a GCP (Google Compute Platform) VM instance using Snakemake. The `Snakefile` is provided in the `snakemake` directory. The `gcloud-setup.sh` file contains the setup process for the google compute platform. The snakemake depends on several configurations. 
+
+Inside a directory which looks like this:
+```
+  test
+   ├──  sequence.fasta
+   └──  config.json
+```
+do
+
+```bash
+cd test
+snakemake -p --snakefile /path/to/Snakefile \ 
+    --config \
+     input=sequence.fasta \
+     vaxpress-config=parameters.json\
+     output-dir='wow_it_works'\
+     instance-name='vaxpress-test'
+```
+
+the results will go inside the `wow_it_works` directory inside the `test` directory.
 
 # Citing VaxPress
 

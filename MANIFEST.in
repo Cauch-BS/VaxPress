@@ -1,4 +1,3 @@
 include README.md
 include LICENSE.txt
-recursive-include vaxpress/utils *.h* *.c*
 recursive-include contrib/LinearFold AUTHORS LICENSE README.md *.cpp *.h
