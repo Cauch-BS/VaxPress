@@ -31,6 +31,7 @@ dependencies = [
     "plotly >= 5.0",
     "pylru >= 1.2",
     "scipy >= 1.0",
+    "aio_pika >= 9.0"
 ]
 
 [project.optional-dependencies]

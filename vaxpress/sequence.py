@@ -3,7 +3,6 @@
 
 from Bio.Data import CodonTable
 import pandas as pd
-from typing import Union
 
 STOP = "*"
 
