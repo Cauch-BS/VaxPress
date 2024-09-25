@@ -25,12 +25,25 @@
 
 import sys
 import re
+import os
+import json
+import uuid
 import pylru
+<<<<<<< HEAD
 import numpy as np
 from tqdm import tqdm
 from concurrent import futures
 from collections import Counter
 from scipy import sparse
+=======
+import asyncio
+import numpy as np
+from struct import unpack
+from tqdm import tqdm
+from concurrent import futures
+from collections import Counter
+from aio_pika import Message, connect
+>>>>>>> upstream/vaxifold-client
 from .log import hbar_stars, log
 
 
@@ -76,41 +89,41 @@ class Evaluator():
 
 class FoldEvaluator(Evaluator):
 
+<<<<<<< HEAD
     def __init__(self, engine: str):
         super().__init__()
         self.engine = engine
         self.initialize()
+=======
+    def __init__(self):
+        self.pat_find_loops = re.compile(r'\.{2,}')
+>>>>>>> upstream/vaxifold-client
 
-    def initialize(self):
-        if self.engine == 'vienna':
-            try:
-                import RNA
-            except ImportError:
-                raise ImportError('ViennaRNA module is not available. Try "'
-                                  'pip install ViennaRNA" to install.')
-            self._fold = RNA.fold
-        elif self.engine == 'linearfold':
-            try:
-                import linearfold
-            except ImportError:
-                raise ImportError('LinearFold module is not available. Try "'
-                                  'pip install linearfold-unofficial" to install.')
-            self._fold = linearfold.fold
-        else:
-            raise ValueError(f'Unsupported RNA folding engine: {self.engine}')
+    def __call__(self, seqs, foldings):
+        for seq, folding in zip(seqs, foldings):
+            # XXX: free_energy is actually the MEA, but we use it as MFE for now.
+            folding['mfe'] = folding['free_energy']
+            mfe_str = folding['structure']
+            stems = self.find_stems(mfe_str)
+            mfe_str, stems = self.unfold_unstable_structure(mfe_str, stems)
+            loops = dict(Counter(map(len, self.pat_find_loops.findall(mfe_str))))
 
+<<<<<<< HEAD
     def __call__(self, seq):
         folding, mfe = self._fold(seq)
         stems = Evaluator.find_stems(folding)
         folding, stems = Evaluator.unfold_unstable_structure(folding, stems)
         loops = dict(Counter(map(len, self.pat_find_loops.findall(folding))))
+=======
+            folding['folding'] = mfe_str
+            folding['stems'] = stems
+            folding['loops'] = loops
+>>>>>>> upstream/vaxifold-client
 
-        return {
-            'folding': folding,
-            'mfe': mfe,
-            'stems': stems,
-            'loops': loops,
-        }
+            folding.pop('structure')
+            folding.pop('free_energy')
+
+        return foldings
 
 class PairingProbEvaluator(Evaluator):
     def __init__(self):
@@ -171,9 +184,30 @@ class SequenceEvaluator:
 
         self.initialize()
 
+    def initialize_vaxifold_client(self):
+        vaxifold_url = os.environ['VAXIFOLD_URL']
+        vaxifold_queue = os.environ['VAXIFOLD_QUEUE']
+        engine = self.execopts.folding_engine
+
+        self.vaxifold = AsyncVaxiFoldClient(vaxifold_url, vaxifold_queue)
+        if engine == 'viennarna':
+            self._partition = self.vaxifold.call_viennarna_partition
+        elif engine == 'linearpartition':
+            self._partition = self.vaxifold.call_linearpartition
+        else:
+            raise ValueError(f'Unsupported RNA folding engine: {engine}')
+
+        asyncio.run(self.vaxifold.connect())
+
     def initialize(self):
+<<<<<<< HEAD
         self.foldeval = FoldEvaluator(self.execopts.folding_engine)
         self.bpp_eval = PairingProbEvaluator()
+=======
+        self.initialize_vaxifold_client()
+
+        self.foldeval = FoldEvaluator()
+>>>>>>> upstream/vaxifold-client
         self.folding_cache = pylru.lrucache(self.folding_cache_size)
         self.bpp_cache = pylru.lrucache(self.bpp_cache_size)
 
@@ -243,9 +277,14 @@ class SequenceEvaluator:
             else:
                 return None, None, None, None, None
 
+    async def fold_individual_seq(self, seq):
+        foldings = await self._partition([{seq: seq}])
+        annotated = self.foldeval([seq], foldings)
+        self.folding_cache[seq] = annotated[0]
+
     def get_folding(self, seq):
         if seq not in self.folding_cache:
-            self.folding_cache[seq] = self.foldeval(seq)
+            asyncio.run(self.fold_individual_seq(seq))
         return self.folding_cache[seq]
     
     def get_pairing_prob(self, seq):
@@ -279,6 +318,91 @@ class SequenceEvaluator:
         return seqevals
 
 
+class AsyncVaxiFoldClient:
+
+    def __init__(self, url, queue):
+        self.url = url
+        self.queue = queue
+
+        self.futures = {}
+        self.results = {}
+
+    async def connect(self):
+        self.connection = await connect(self.url)
+        self.channel = await self.connection.channel()
+        self.callback_queue = await self.channel.declare_queue(exclusive=True)
+        await self.callback_queue.consume(self.on_response, no_ack=False)
+
+        return self
+
+    async def on_response(self, message):
+        if message.correlation_id is None:
+            return
+
+        callid, seqid = message.correlation_id.split(':', 1)
+        seqid = int(seqid)
+
+        if callid not in self.futures:
+            return
+
+        result = self.parse_partition_response(message.body)
+        self.results[callid][1][seqid] = result
+        self.results[callid][0] -= 1
+        print('.', end='', flush=True)
+
+        if self.results[callid][0] <= 0:
+            future = self.futures.pop(callid)
+            call_results = self.results.pop(callid)[1]
+            future.set_result(call_results)
+            print(' done')
+
+    @staticmethod
+    def parse_partition_response(response):
+        bp_dtype = [('i', 'i4'), ('j', 'i4'), ('prob', 'f8')]
+        free_energy, seqlen = unpack('di', response[:12])
+        return {
+            'structure': response[12:12+seqlen].decode(),
+            'free_energy': free_energy,
+            'bpp': np.frombuffer(response[12+seqlen:], dtype=bp_dtype),
+        }
+
+    async def call_rpc(self, payloads, loop):
+        loop = loop if loop is not None else asyncio.get_running_loop()
+
+        future = loop.create_future()
+        callid = uuid.uuid4().hex
+
+        self.futures[callid] = future
+        self.results[callid] = [len(payloads), [None] * len(payloads)]
+
+        # Ensure the channel is open
+        if self.channel.is_closed:
+            await self.connect()
+
+        for seqid, payload in enumerate(payloads):
+            message = Message(
+                payload, reply_to=self.callback_queue.name,
+                correlation_id=f'{callid}:{seqid}'
+            )
+
+            await self.channel.default_exchange.publish(
+                message, routing_key=self.queue)
+
+        return await future
+
+    def call_viennarna_partition(self, seqs, loop=None):
+        payloads = [
+            json.dumps({'method': 'viennarna_partition', 'args': {'seq': seq}}).encode()
+            for seq in seqs]
+        return self.call_rpc(payloads, loop)
+
+    def call_linearpartition(self, seqs, loop=None):
+        payloads = [
+            json.dumps({'method': 'linearpartition', 'args': {'seq': seq}}).encode()
+            for seq in seqs]
+        return self.call_rpc(payloads, loop)
+
+
 class SequenceEvaluationSession:
 
     def __init__(self, evaluator: SequenceEvaluator, seqs: list[str],
@@ -292,9 +416,8 @@ class SequenceEvaluationSession:
         self.pairingprobs = [None] * len(seqs)
         self.errors = []
 
-        self.folding_cache = evaluator.folding_cache
-        self.foldings_remaining = len(seqs)
         self.foldeval = evaluator.foldeval
+        self.vaxifold_partition = evaluator._partition
 
         self.bpp_cache = evaluator.bpp_cache
         self.bpps_remaining = len(seqs)
@@ -306,28 +429,23 @@ class SequenceEvaluationSession:
             len(evaluator.scorefuncs_bpp) + 
             len(seqs))
 
-        self.pbar = None
         self.quiet = evaluator.quiet
 
         self.scorefuncs_folding = evaluator.scorefuncs_folding
         self.scorefuncs_nofolding = evaluator.scorefuncs_nofolding
         self.scorefuncs_bpp = evaluator.scorefuncs_bpp
         self.annotationfuncs = evaluator.annotationfuncs
-    
+
     def __enter__(self):
-        log.info('')
-        self.pbar = tqdm(total=self.num_tasks, disable=self.quiet,
-                         file=sys.stderr, unit='task', desc='Scoring fitness')
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.pbar is not None:
-            self.pbar.close()
-        log.info('')
+        pass
 
-    def evaluate(self) -> None:
-        jobs = set()
+    def evaluate(self):
+        asyncio.run(self.run_evaluations())
 
+<<<<<<< HEAD
         # First, base pairing probability is calculated.
         for i, seq in enumerate(self.seqs):
             if self.errors:
@@ -349,14 +467,15 @@ class SequenceEvaluationSession:
         for i, seq in enumerate(self.seqs):
             if self.errors: # skip remaining tasks on error
                 continue
+=======
+    async def run_evaluations(self):
+        tasks_with_folding = self.run_scoring_with_folding()
+        tasks_without_folding = self.run_scoring_without_folding()
+>>>>>>> upstream/vaxifold-client
 
-            if seq in self.folding_cache:
-                self.foldings[i] = self.folding_cache[seq]
-                self.foldings_remaining -= 1
-                if self.pbar is not None:
-                    self.pbar.update()
-                continue
+        await asyncio.gather(tasks_without_folding, tasks_with_folding)
 
+<<<<<<< HEAD
             future = self.executor.submit(self.foldeval, seq)
             future._seqidx = i
             future._type = 'folding'
@@ -366,11 +485,17 @@ class SequenceEvaluationSession:
         for scorefunc in self.scorefuncs_nofolding: # no folding, no bpp
             if self.errors:
                 continue
+=======
+    async def run_scoring_without_folding(self):
+        tasks = []
+        for scorefunc in self.scorefuncs_nofolding:
+            task = self.call_scorefunc(scorefunc, self.seqs)
+            tasks.append(task)
+>>>>>>> upstream/vaxifold-client
 
-            future = self.executor.submit(scorefunc, self.seqs)
-            future._type = 'scoring'
-            jobs.add(future)
+        await asyncio.gather(*tasks)
 
+<<<<<<< HEAD
         # Wait until all folding tasks are finished.
         while jobs and not self.errors and (self.foldings_remaining > 0
                                             or self.bpps_remaining > 0):
@@ -418,18 +543,41 @@ class SequenceEvaluationSession:
         try:
             ret = future.result()
             #print(ret)
+=======
+    async def run_scoring_with_folding(self):
+        loop = asyncio.get_running_loop()
+
+        foldings = await self.vaxifold_partition(self.seqs)
+        future = loop.run_in_executor(None, self.foldeval, self.seqs, foldings)
+        try:
+            self.foldings = await future
+        except Exception as exc:
+            return self.handle_exception(exc)
+
+        tasks = []
+        for scorefunc in self.scorefuncs_folding:
+            task = self.call_scorefunc(scorefunc, self.seqs, self.foldings)
+            tasks.append(task)
+
+        await asyncio.gather(*tasks)
+
+    async def call_scorefunc(self, scorefunc, seqs, foldings=None):
+        loop = asyncio.get_running_loop()
+
+        if foldings is None:
+            future = loop.run_in_executor(None, scorefunc, seqs)
+        else:
+            future = loop.run_in_executor(None, scorefunc, seqs, foldings)
+
+        try:
+            ret = await future
+>>>>>>> upstream/vaxifold-client
             if ret is None:
                 self.errors.append('KeyboardInterrupt')
-                if self.pbar is not None:
-                    self.pbar.close()
-                self.pbar = None
                 return
             scoreupdates, metricupdates = ret
         except Exception as exc:
             return self.handle_exception(exc)
-
-        if self.pbar is not None:
-            self.pbar.update()
 
         # Update scores
         for k, updates in scoreupdates.items():
@@ -458,25 +606,6 @@ class SequenceEvaluationSession:
         self.pairingprobs[i] = pairingprob
         self.bpp_cache[self.seqs[i]] = pairingprob
         self.bpps_remaining -= 1
-
-        if self.pbar is not None:
-            self.pbar.update()
-
-    def collect_folding(self, future):
-        try:
-            folding = future.result()
-            if folding is None:
-                self.errors.append('KeyboardInterrupt')
-                if self.pbar is not None:
-                    self.pbar.close()
-                self.pbar = None
-                return
-        except Exception as exc:
-            return self.handle_exception(exc)
-        i = future._seqidx
-        self.foldings[i] = folding
-        self.folding_cache[self.seqs[i]] = folding
-        self.foldings_remaining -= 1
 
         if self.pbar is not None:
             self.pbar.update()

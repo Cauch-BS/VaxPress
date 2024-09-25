@@ -269,6 +269,7 @@ def parse_options(scoring_funcs, preset, default_off):
     )
     grp.add_argument("--version", action="version", version=__version__)
 
+<<<<<<< HEAD
     grp = parser.add_argument_group("Execution Options")
     grp.add_argument(
         "--preset",
@@ -313,6 +314,23 @@ def parse_options(scoring_funcs, preset, default_off):
         action="store_true",
         help="turn all fitness functions off by default",
     )
+=======
+    grp = parser.add_argument_group('Execution Options')
+    grp.add_argument('--preset', type=str, required=False, default=None,
+                     metavar='FILE', help='use preset values in parameters.json')
+    grp.add_argument('--addon', type=str, action='append', metavar='FILE',
+                     help='load a third-party fitness function')
+    grp.add_argument('-p', '--processes', type=int, default=4, metavar='N',
+                     help='number of processes to use (default: 4)')
+    grp.add_argument('--seed', type=int, default=922, metavar='NUMBER',
+                     help='random seed (default: 922)')
+    grp.add_argument('--folding-engine', default='viennarna', metavar='NAME',
+                     choices=['viennarna', 'linearpartition'],
+                     help='RNA folding engine: vienna or linearfold '
+                          '(default: vienna)')
+    grp.add_argument('--default-off', default=False, action='store_true',
+                     help='turn all fitness functions off by default')
+>>>>>>> upstream/vaxifold-client
 
     grp = parser.add_argument_group("Optimization Options")
     grp.add_argument(
