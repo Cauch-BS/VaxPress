@@ -220,8 +220,8 @@ def parse_options(scoring_funcs, preset, default_off):
                      help='number of processes to use (default: 4)')
     grp.add_argument('--seed', type=int, default=922, metavar='NUMBER',
                      help='random seed (default: 922)')
-    grp.add_argument('--folding-engine', default='vienna', metavar='NAME',
-                     choices=['vienna', 'linearfold'],
+    grp.add_argument('--folding-engine', default='viennarna', metavar='NAME',
+                     choices=['viennarna', 'linearpartition'],
                      help='RNA folding engine: vienna or linearfold '
                           '(default: vienna)')
     grp.add_argument('--default-off', default=False, action='store_true',

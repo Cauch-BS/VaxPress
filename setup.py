@@ -73,6 +73,7 @@ setup(
         'Jinja2 >= 3.1',
         'plotly >= 5.0',
         'pylru >= 1.2',
+        'aio_pika >= 9.0',
     ],
     extras_require={
         'nonfree': ['linearfold-unofficial'],
