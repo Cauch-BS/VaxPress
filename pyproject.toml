@@ -16,6 +16,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 keywords = ["mRNA vaccine", "messenger RNA", "codon optimization"]
+requires-python = ">=3.9"
 dependencies = [
     "biopython >= 1.5",
     "numpy >= 1.15",
@@ -32,6 +33,7 @@ dependencies = [
     "pylru >= 1.2",
     "scipy >= 1.0",
 ]
+
 
 [project.optional-dependencies]
 nonfree = ["linearfold-unofficial"]
@@ -59,5 +61,5 @@ include = ["vaxpress*", "vaxpress.utils.polish*"]
 ]
 
 [build-system]
-requires = ["setuptools >= 40.8.0", "wheel", "pybind11"]
+requires = ["setuptools >= 40.8.0", "wheel", "build"]
 build-backend = "setuptools.build_meta"

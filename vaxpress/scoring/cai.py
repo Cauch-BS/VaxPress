@@ -23,25 +23,32 @@
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from . import ScoringFunction
+import numpy as np
+
 from ..data import codon_usage_data
 from ..sequence import Sequence
-import numpy as np
+from . import ScoringFunction
+
 
 class CodonAdaptationIndexFitness(ScoringFunction):
 
-    name = 'cai'
-    description = 'Codon Adaptation Index'
+    name = "cai"
+    description = "Codon Adaptation Index"
     priority = 20
 
     use_annotation_on_zero_weight = True
 
-    requires = ['mutantgen', 'species']
+    requires = ["mutantgen", "species"]
     arguments = [
-        ('weight', dict(
-            type=float, default=0, metavar='WEIGHT',
-            help='scoring weight for codon adaptation index (default: 0)'
-        )),
+        (
+            "weight",
+            dict(
+                type=float,
+                default=0,
+                metavar="WEIGHT",
+                help="scoring weight for codon adaptation index (default: 0)",
+            ),
+        ),
     ]
 
     def __init__(self, weight, _length_cds, _species, _mutantgen):
@@ -52,7 +59,7 @@ class CodonAdaptationIndexFitness(ScoringFunction):
 
     def initialize_codon_scores(self):
         if self.species not in codon_usage_data.codon_usage:
-            raise ValueError(f'No codon usage data for species: {self.species}')
+            raise ValueError(f"No codon usage data for species: {self.species}")
 
         codon_usage = codon_usage_data.codon_usage[self.species]
         scores = {}
@@ -66,18 +73,21 @@ class CodonAdaptationIndexFitness(ScoringFunction):
     def score(self, seqs):
         scores = self.codon_scores
         seqs = [Sequence(seq).cdsseq for seq in seqs]
-        #TROUBLESHOOTING
-        #print(f"Running CAI score of {seqs[0][:10]}.")
-        cai = np.array([
-        np.mean([scores[seq[i:i+3]] for i in range(0, len(seq), 3)])
-        for seq in seqs])
+        # TROUBLESHOOTING
+        # print(f"Running CAI score of {seqs[0][:10]}.")
+        cai = np.array(
+            [
+                np.mean([scores[seq[i : i + 3]] for i in range(0, len(seq), 3)])
+                for seq in seqs
+            ]
+        )
         cai_score = cai * self.weight
 
-        return {'cai': cai_score}, {'cai': cai}
+        return {"cai": cai_score}, {"cai": cai}
 
     def evaluate_local(self, seq):
         scores = self.codon_scores
         seq = Sequence(seq).cdsseq
-        cai = np.array([scores[seq[i:i+3]] for i in range(0, len(seq), 3)])
+        cai = np.array([scores[seq[i : i + 3]] for i in range(0, len(seq), 3)])
         centers = np.arange(0, len(seq), 3) + 1
-        return {'cai': (centers, cai)}
+        return {"cai": (centers, cai)}

@@ -23,14 +23,15 @@
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from . import ScoringFunction
+import pytrf  # type: ignore[import]
+
 from ..sequence import Sequence
-import pytrf
+from . import ScoringFunction
 
 
 class TandemRepeatsFitness(ScoringFunction):
 
-    name = "t_repeats"
+    name = "repeats"
     description = "Tandem Repeats"
     priority = 60
 
@@ -66,7 +67,7 @@ class TandemRepeatsFitness(ScoringFunction):
         ),
     ]
 
-    penalty_metric_flags = {"t_repeat": "tr"}
+    penalty_metric_flags = {"repeat": "tr"}
 
     def __init__(self, weight, min_repeats, min_length, _length_cds):
         self.weight = weight / _length_cds * -1000
@@ -85,7 +86,7 @@ class TandemRepeatsFitness(ScoringFunction):
 
         repeat_score = [length * self.weight for length in replengths]
 
-        metrics = {"t_repeat": replengths}
-        scores = {"t_repeat": repeat_score}
+        metrics = {"repeat": replengths}
+        scores = {"repeat": repeat_score}
 
         return scores, metrics

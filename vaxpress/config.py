@@ -26,16 +26,19 @@
 import json
 import os
 
-ARGUMENTS_AUTOMATIC_SAVE = ['lineardesign_dir']
+ARGUMENTS_AUTOMATIC_SAVE = ["lineardesign_dir"]
 
 default_configfile = os.path.join(
-    os.path.expanduser('~'), '.config', 'vaxpress', 'config.json')
+    os.path.expanduser("~"), ".config", "vaxpress", "config.json"
+)
+
 
 def load_config(configfile=default_configfile):
     try:
         return json.load(open(configfile))
     except (FileNotFoundError, PermissionError):
         return {}
+
 
 def initialize_config_if_needed(args, configfile=default_configfile):
     conf = load_config(configfile)
@@ -52,6 +55,6 @@ def initialize_config_if_needed(args, configfile=default_configfile):
 
     try:
         os.makedirs(os.path.dirname(configfile), exist_ok=True)
-        json.dump(conf, open(configfile, 'w'), indent=2)
+        json.dump(conf, open(configfile, "w"), indent=2)
     except (PermissionError, FileExistsError):
         pass

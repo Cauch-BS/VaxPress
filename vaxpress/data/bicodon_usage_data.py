@@ -9,15 +9,19 @@
 #     Journal of Molecular Biology. 2019
 #
 
-import numpy as np
 from base64 import a85decode
+
+import numpy as np
+
 
 def _(b):
     return np.frombuffer(a85decode(b), dtype=np.float16)
 
+
 bicodon_usage = {}
 
-bicodon_usage['Macaca mulatta'] = _(rb'''
+bicodon_usage["Macaca mulatta"] = _(
+    rb"""
 #rCBt=?!oU83Proc+$,'Y<31R:-&nIS2h9F7QdY4Rl-j")*/'dI6?pYUqBbk\#\u(P,p+@FLW-j[Q(iN
 !'MYjni96($9U:1"MKpZ83JglBfJ%2=u3??,s66.pH"L#:b(EdLHF][i4N5U76Iq:(-G,NCUKHg9XX"F
 5s.\$83Q<#%m<HHgb4%:83KL,[l`,#kd*fC83Km4RPIDs83M5Z-9Og^r303aJhonX/ioE,`jlU?83Q)a
@@ -145,9 +149,11 @@ i4Tc2a0V>LI(l[2q7T\>qn,_/?FFO]WPIT*nM;T.75IItmBb/")`EmBV7M[I83KL,83K't=h@3f'sot^
 ,;9ldN\..g:TAKD`4j<ts0+\sO1.Wh9tQq+@kuZC#JHe=ZF7BS(9tZb'YrP0\@obm#/"H\kJ*1o`jS[V
 %'TH3&@4h_4LcZF5/=A1^p]?8mCG'cU:oj):pa99H*UV]<Ogqg\[;%;T"pPp8i$@S:pY)F3l%]+:VL>E
 @61JJD`N&';D_T3W4t,Gh)/KFEil[O.(@d'M)`O70X?Hj7lS[QBKY`CEkUg%F"j8rl4&faRCefo$Sqph
-83LNHdl^/aoK,T,28$1V83IhQ&Ng.VJLi--83OaJcngtDI("JbDDolu>/5,<:9GA:">n(T6b*sgO1)q^''')
+83LNHdl^/aoK,T,28$1V83IhQ&Ng.VJLi--83OaJcngtDI("JbDDolu>/5,<:9GA:">n(T6b*sgO1)q^"""
+)
 
-bicodon_usage['Homo sapiens'] = _(rb'''
+bicodon_usage["Homo sapiens"] = _(
+    rb"""
 @PeZXl8Rif0g3B8oskJn^cY[Z"Zdeg#!./oo/k2Z4uUGBfJsg3Qosdt0"bj[C9BG$HEW@;rjU"OOZ93l
 )*J9f+Z_>@n2hCJ,JAId0g30169+a!(,YkG/3FY-:-5F;nh2CSiB%i:[_-?;D`^cT2`rfX6*u)$%CGpn
 4$55\0g0J;/NkgOXXc.g0g.6SgH5$feZpnm0g.TZ4#AZT0g-+09KY$mDQk6G__I-2=#nL4.(NMA0g4AF
@@ -275,9 +281,11 @@ G.p_[^U8F$42)Q4KYCF!VS.Mbk-f'>T>90k%Q(<&E@in.@2sPR0/f1[fXf*`0g.6S0g-76d^h.rCTqP7
 "#96ur\$Pt%]Q52U:t0CcE<eJ-+,P;(;"7i0JX-FYe5Oq;RT]:2mA[ZZ+hfpd(PRT'YF@YJA3bO[^@Tu
 <ieBfbHUUq4h'+OAAA>UbdM2q&\>uo0"mUa"gQCcSudgV27^#mK!][-2S_&KPr0#\0sO]_,/=r*-bdO(
 LH6/0>rf;R<&E>alb@$h"?<oud4!);-+5Y1*B4ute?CVa$okOQI69qYF1iPVRk_sm,c^OGm(+@IhD1=t
-0g-sJP<:Q_,WmeE*k]9N0g4DU'0Nle4Y^S/0g-dB*An'YB=Y?0[5RY6*l,6FQnAED+>q_-"hF=_W3n-5''')
+0g-sJP<:Q_,WmeE*k]9N0g4DU'0Nle4Y^S/0g-dB*An'YB=Y?0[5RY6*l,6FQnAED+>q_-"hF=_W3n-5"""
+)
 
-bicodon_usage['Mus musculus'] = _(rb'''
+bicodon_usage["Mus musculus"] = _(
+    rb"""
 ?FAEF#rUg(e2s9`J@SfC>s!BnZ8egBFY97G'fu%J5d34//NEPc#W`PYMS/gI'Xb-O<3`"**4nMAau8(_
 HTUFQ"?K:?ANN+>RCmN$>!9_bPW>$h*%0K"brZ7i_`A>k'K!?\%5p('%)*64@lnZl%6CIN_Rl[)A\/@3
 =Z]eM>!;%/>!5MA@kd./>!6%P6p-,_=L;6p>!9PZa"gg]>!8`D,!B*mcEU>3^,'%SJiU0B/@kC4>!;1"
@@ -405,9 +413,11 @@ NB16+>!64RjZ?X/'!]/3&Ns;\J3;@CVRK_l>!5;77Bp#Z>!:\'>!;gH$S5CC/3H<_>!95M6+LSe>!;ba
 $+2$3"0I,2>d0*jXM2!H)6t?oB=3)rB>!cE<%f?'B"e#I6aql[3N'9lGeVlbe\*'<p:?j0HbT`tA[,=M
 F0o\a;6^ik)R`2A1VdD#Ksn:q=h2qkC:tb&3ijC8#IZ1gDmkP1J@.5@8AN3I;D<$t"gPqHID@&<I_O+8
 a#;7#XZ%^fVDH%DT>.$PL,&e=oWs1[Xh$Bh/2X1R9"7;H&N.B_M`WLNKtONM=rfE226oZ^]t<U<0f.%]
--Tsj\>!6%P>!,tO+hSFN>!;C;$U"8FAXg=l>!6FT6F2S([((rO<A8GMSA5@ieZ^%$IP>1Y<4oXjlFAjX''')
+-Tsj\>!6%P>!,tO+hSFN>!;C;$U"8FAXg=l>!6FT6F2S([((rO<A8GMSA5@ieZ^%$IP>1Y<4oXjlFAjX"""
+)
 
-bicodon_usage['Rattus norvegicus'] = _(rb'''
+bicodon_usage["Rattus norvegicus"] = _(
+    rb"""
 d^I1U1c,h*V)s;j9"At&JNLk3!BH#skqWu7#s&SW[]i.\=Z:.Vp,^>V'YNQhF1**t9sPPG)7pKar\m'L
 coWgAg,UKBKf_:X^Ul3^Aj+6u@QJ?cX=CqD;`lKeEB,+'0J[3"qDL,hm(I$klT1Co,<E"jA\1,c=hDX4
 D`_PoAj+R&*'ImsFtn/%Aj'`h5s,iB@'sT0Aj*7Vr%VeHAj%Y*-9Ys(F0S8!MDJQu;)p)1dCB<=Aj&[5
@@ -535,9 +545,11 @@ LH9$1Aj(K%ME>E57'ghn'0TqjUHGV=o!W-nAj)tN!jZE$Aj+-p>!:h,9Wr%k:-8nHAj&+5:q<qmAj+SB
 pU'HB\u_2O#I&N[_7mIe%(&[:Bt'D<HG%)(,;>(dPJ+!'9=Hpkj.AcIm_5&>J%jmT6bN90[_HFf6F*u3
 4giM:"0hk\Og\Dt+M]V3)7E&DI(;)Gf=h'nSZY/hDm[Kg@CXLfV6ih$@DGdF!B.$fBX%oKVSJ/$Dn``g
 9K&4piAQ<HJhWTHLVJ]rpb<YqppG4R9Y*Qp0K$9j6FaBVL,:kG9KTsJZ+O4%Of\Vqkd50<,eT&CAi/,J
-2a(b9Aj&ID+Zs@"rjr\(Aj&pP76GQMgT&4PAj+'i+YGr6P.!_9p+eTaR)%lEpTV$4^+IJVMS)&*/%R[E''')
+2a(b9Aj&ID+Zs@"rjr\(Aj&pP76GQMgT&4PAj+'i+YGr6P.!_9p+eTaR)%lEpTV$4^+IJVMS)&*/%R[E"""
+)
 
-bicodon_usage['Danio rerio'] = _(rb'''
+bicodon_usage["Danio rerio"] = _(
+    rb"""
 +td"\JiLq4Im%7'&@dTZ><=#i^+prmoqj&sn2^b-e2`"AIm)(;Im(A(B=:8lafS]&GdTZB?a4K/.6Z94
 &NbJ*Im&EHF$2BD7'qG,Im#hSYVB*;cDZ=TIm*$UfK=XHkV+JKq)[UtoXs9HIm(_3Im$mrn[j*,`O\5m
 3B_jTIm(q6Im)gRij>.9Im&9EYW93RS[X)3Im*<]7PoTXIm(h4s#f$tr$?hU?)s_[j0\]hJ%Ra"Im$H"
@@ -665,4 +677,5 @@ J%s"9<4s-]?+RSZO2-skgp^V'VS*YV&A`S+lF`b(F0pn=LU].P:Unca1;T]r^9uY-hRJNWOMP,6rkNKa
 QatqWQF2RW0s>CG\[qtu+Y=\@*&E0q*km!2BX@9=A&#dcHb&7J-S7cd_RtLV!k_CALUg3k5f&GpK")6(
 -,%4$qR$""fs3Q2/%p0`?66JR4Lpk,@_d6%WO-o_G.+BS9sXl,>-tZB5e\BtW\lH<""6AjN5>7rQG,U6
 auhdGloM7,l8%S.#/>"(?ab0hijr!t[_"H+/Mi8%4gij&TKCL\a?1e0rjmSB"hSHX%(p)\hn-q5E]\r]
-gGsaHIm$Ce=Zi3:fX?8mIm"T14#rln.CSk(Im"Z.<'*`6rNk'6>9+]g2Sbk=)`5=;gG.*QV7YYC>-sa&''')
+gGsaHIm$Ce=Zi3:fX?8mIm"T14#rln.CSk(Im"Z.<'*`6rNk'6>9+]g2Sbk=)`5=;gG.*QV7YYC>-sa&"""
+)

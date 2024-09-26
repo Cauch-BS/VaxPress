@@ -24,11 +24,13 @@
 #
 
 import os
-import sys
 import subprocess as sp
-from tqdm import tqdm
+import sys
+from fcntl import F_GETFL, F_SETFL, fcntl
 from select import select
-from fcntl import fcntl, F_GETFL, F_SETFL
+
+from tqdm import tqdm  # type: ignore
+
 
 def read_live_updates(stdout, bufsize=8192):
     fd = stdout.fileno()
@@ -46,9 +48,9 @@ def read_live_updates(stdout, bufsize=8192):
         if not data:
             break
 
-        if b'\r' in data:
-            chunks = data.split(b'\r')
-            yield (b''.join(buf) + chunks[0]).decode()
+        if b"\r" in data:
+            chunks = data.split(b"\r")
+            yield (b"".join(buf) + chunks[0]).decode()
 
             for chunk in chunks[1:-1]:
                 yield chunk.decode()
@@ -58,50 +60,65 @@ def read_live_updates(stdout, bufsize=8192):
             buf.append(data)
 
     if buf:
-        yield b''.join(buf).decode()
+        yield b"".join(buf).decode()
 
-def run_lineardesign(lineardesign_dir, sequence, lmd=0.5, quiet=False,
-                     codonusage='codon_usage_freq_table_human.csv'):
-    lineardesign_bin = os.path.join(lineardesign_dir, 'bin/LinearDesign_2D')
+
+def run_lineardesign(
+    lineardesign_dir,
+    sequence,
+    lmd=0.5,
+    quiet=False,
+    codonusage="codon_usage_freq_table_human.csv",
+):
+    lineardesign_bin = os.path.join(lineardesign_dir, "bin/LinearDesign_2D")
     lineardesign_bin = os.path.abspath(lineardesign_bin)
     if not os.path.exists(lineardesign_bin):
-        raise FileNotFoundError(f'LinearDesign binary not found in {lineardesign_dir}')
+        raise FileNotFoundError(f"LinearDesign binary not found in {lineardesign_dir}")
 
-    pbar = tqdm(total=len(sequence) * 3, disable=quiet, unit='nt', file=sys.stderr,
-                desc='LinearDesign')
+    pbar = tqdm(
+        total=len(sequence) * 3,
+        disable=quiet,
+        unit="nt",
+        file=sys.stderr,
+        desc="LinearDesign",
+    )
     j = 0
     ret = []
 
-    with sp.Popen([lineardesign_bin, str(lmd), '0', codonusage],
-                  cwd=lineardesign_dir, stdin=sp.PIPE, stdout=sp.PIPE) as proc:
+    with sp.Popen(
+        [lineardesign_bin, str(lmd), "0", codonusage],
+        cwd=lineardesign_dir,
+        stdin=sp.PIPE,
+        stdout=sp.PIPE,
+    ) as proc:
         proc.stdin.write(sequence.encode())
-        proc.stdin.write(b'\n')
+        proc.stdin.write(b"\n")
         proc.stdin.close()
 
         for chunk in read_live_updates(proc.stdout):
-            if chunk.startswith('j='):
+            if chunk.startswith("j="):
                 newj = int(chunk[2:])
                 if newj - j >= 5:
                     pbar.update(newj - j)
                     j = newj
-            elif chunk.startswith('mRNA sequence:  '):
+            elif chunk.startswith("mRNA sequence:  "):
                 ret.append(chunk)
 
     pbar.close()
-    ret = ''.join(ret)
+    ret = "".join(ret)
 
-    if 'mRNA sequence:  ' not in ret:
-        raise ValueError('Unexpected output from LinearDesign.')
+    if "mRNA sequence:  " not in ret:
+        raise ValueError("Unexpected output from LinearDesign.")
 
-    lines = ret.split('mRNA sequence:  ')[1].splitlines()
+    lines = ret.split("mRNA sequence:  ")[1].splitlines()
     rnaseq = lines[0].strip()
-    rnastr = lines[1].split(': ')[1].strip()
-    mfe = float(lines[2].split(': ')[1].split()[0])
-    cai = float(lines[2].split(': ')[2].strip())
+    rnastr = lines[1].split(": ")[1].strip()
+    mfe = float(lines[2].split(": ")[1].split()[0])
+    cai = float(lines[2].split(": ")[2].strip())
 
     return {
-        'seq': rnaseq,
-        'str': rnastr,
-        'mfe': mfe,
-        'cai': cai,
+        "seq": rnaseq,
+        "str": rnastr,
+        "mfe": mfe,
+        "cai": cai,
     }

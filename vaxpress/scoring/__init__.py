@@ -25,10 +25,11 @@
 
 import abc
 
+
 class ScoringFunction(abc.ABC):
 
-    name = 'noname'
-    description = 'no description'
+    name = "noname"
+    description = "no description"
 
     # Command line help shows in ascending order of this priority
     priority = 99
@@ -44,22 +45,22 @@ class ScoringFunction(abc.ABC):
     use_annotation_on_zero_weight = False
 
     # Specifies the additional required arguments for the constructor
-    requires = []
+    requires: list = []
 
     # Command line arguments
-    arguments = []
+    arguments: list = []
 
     # One letter flags for showing penalty metrics in the console.
-    penalty_metric_flags = {}
+    penalty_metric_flags: dict = {}
 
     @classmethod
     def add_argument_parser(cls, parser):
-        grp = parser.add_argument_group('Fitness - ' + cls.description)
-        argprefix = '--{name}-'.format(name=cls.name.replace('_', '-'))
+        grp = parser.add_argument_group("Fitness - " + cls.description)
+        argprefix = "--{name}-".format(name=cls.name.replace("_", "-"))
         argmap = []
         for argname, argopts in cls.arguments:
             grp.add_argument(argprefix + argname, **argopts)
-            argmap.append((argprefix + argname, argname.replace('-', '_')))
+            argmap.append((argprefix + argname, argname.replace("-", "_")))
         return argmap
 
     def __call__(self, seqs, *args, **kwargs):
@@ -72,24 +73,29 @@ class ScoringFunction(abc.ABC):
     def score(self, seqs):
         raise NotImplementedError
 
+
 def discover_scoring_functions(addon_paths):
-    from . import __path__, __name__
-    import pkgutil
     import importlib
     import os
+    import pkgutil
     import sys
+
+    from . import __name__, __path__
 
     funcs = {}
 
     def scan_module(mod):
         for objname in dir(mod):
             obj = getattr(mod, objname)
-            if (obj is not ScoringFunction and type(obj) == abc.ABCMeta and
-                    issubclass(obj, ScoringFunction)):
+            if (
+                obj is not ScoringFunction
+                and isinstance(obj, abc.ABCMeta)
+                and issubclass(obj, ScoringFunction)
+            ):
                 funcs[obj.name] = obj
 
     for modinfo in pkgutil.iter_modules(__path__):
-        modname = f'{__name__}.{modinfo.name}'
+        modname = f"{__name__}.{modinfo.name}"
         mod = importlib.import_module(modname)
         scan_module(mod)
 

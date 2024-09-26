@@ -25,27 +25,34 @@
 
 from . import ScoringFunction
 
+
 class MFEFitness(ScoringFunction):
 
-    name = 'mfe'
-    description = 'RNA Folding (MFE)'
+    name = "mfe"
+    description = "RNA Folding (MFE)"
     priority = 40
     uses_folding = True
 
     arguments = [
-        ('weight', dict(
-            type=float, default=3.0, metavar='WEIGHT',
-            help='scoring weight for MFE (default: 3.0)')),
+        (
+            "weight",
+            dict(
+                type=float,
+                default=3.0,
+                metavar="WEIGHT",
+                help="scoring weight for MFE (default: 3.0)",
+            ),
+        ),
     ]
 
     def __init__(self, weight, _length_cds):
         self.weight = -weight / _length_cds
 
     def score(self, seqs, foldings):
-        mfe = [folding['mfe'] for folding in foldings]
+        mfe = [folding["mfe"] for folding in foldings]
         score = [m * self.weight for m in mfe]
 
-        return {'mfe': score}, {'mfe': mfe}
+        return {"mfe": score}, {"mfe": mfe}
 
     def annotate_sequence(self, seq, folding):
-        return {'mfe': folding['mfe']}
+        return {"mfe": folding["mfe"]}

@@ -23,25 +23,33 @@
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from . import ScoringFunction
+from itertools import product
+
+import numpy as np
+
 from ..data import bicodon_usage_data
 from ..sequence import Sequence
-import numpy as np
-from itertools import product
+from . import ScoringFunction
+
 
 class BicodonAdaptationIndexFitness(ScoringFunction):
 
-    name = 'bicodon'
-    description = 'Codon Adaptation Index of Codon-Pairs'
+    name = "bicodon"
+    description = "Codon Adaptation Index of Codon-Pairs"
     priority = 21
 
-    requires = ['species']
+    requires = ["species"]
     arguments = [
-        ('weight', dict(
-            type=float, default=1.0, metavar='WEIGHT',
-            help='scoring weight for codon adaptation index of codon-pairs '
-                 '(default: 1.0)'
-        )),
+        (
+            "weight",
+            dict(
+                type=float,
+                default=1.0,
+                metavar="WEIGHT",
+                help="scoring weight for codon adaptation index of codon-pairs "
+                "(default: 1.0)",
+            ),
+        ),
     ]
 
     def __init__(self, weight, _length_cds, _species):
@@ -51,26 +59,30 @@ class BicodonAdaptationIndexFitness(ScoringFunction):
 
     def initialize_bicodon_scores(self):
         if self.species not in bicodon_usage_data.bicodon_usage:
-            raise ValueError(f'No bicodon usage data for species: {self.species}')
+            raise ValueError(f"No bicodon usage data for species: {self.species}")
 
-        bicodon_usage = (
-            bicodon_usage_data.bicodon_usage[self.species].astype(np.float64))
-        pairs = [''.join(seq) for seq in product('ACGU', repeat=6)]
+        bicodon_usage = bicodon_usage_data.bicodon_usage[self.species].astype(
+            np.float64
+        )
+        pairs = ["".join(seq) for seq in product("ACGU", repeat=6)]
 
         self.bicodon_scores = dict(zip(pairs, bicodon_usage))
         assert len(self.bicodon_scores) == 4096
 
     def score(self, seqs):
         seqs = [Sequence(seq).cdsseq for seq in seqs]
-        #TROUBLESHOOTING
-        #print(f"Running Bicodon CAI score of {seqs[0][:10]}.")
+        # TROUBLESHOOTING
+        # print(f"Running Bicodon CAI score of {seqs[0][:10]}.")
         if len(seqs[0]) < 6:
             return [0.0] * len(seqs)
 
         scores = self.bicodon_scores
-        bcai = np.array([
-            np.mean([scores[seq[i:i+6]] for i in range(0, len(seq) - 3, 3)])
-            for seq in seqs])
+        bcai = np.array(
+            [
+                np.mean([scores[seq[i : i + 6]] for i in range(0, len(seq) - 3, 3)])
+                for seq in seqs
+            ]
+        )
         bcai_score = bcai * self.weight
 
-        return {'bicodon': bcai_score}, {'bicodon': bcai}
+        return {"bicodon": bcai_score}, {"bicodon": bcai}

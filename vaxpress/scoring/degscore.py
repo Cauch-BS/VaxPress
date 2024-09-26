@@ -23,19 +23,22 @@
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from . import ScoringFunction
-from ..datacache import get_cachepath
-from ..log import log
 import importlib.util as imputil
 import sys
+
+from ..datacache import get_cachepath
+from ..log import log
+from . import ScoringFunction
 
 
 class LazyLoadingDegScoreProxy:
 
-    DEGSCORE_RAW_PREFIX = 'https://raw.githubusercontent.com/eternagame/DegScore/master/'
+    DEGSCORE_RAW_PREFIX = (
+        "https://raw.githubusercontent.com/eternagame/DegScore/master/"
+    )
     download_addresses = {
-        'DegScore.py': f'{DEGSCORE_RAW_PREFIX}DegScore.py',
-        'assign_loop_type.py': f'{DEGSCORE_RAW_PREFIX}assign_loop_type.py',
+        "DegScore.py": f"{DEGSCORE_RAW_PREFIX}DegScore.py",
+        "assign_loop_type.py": f"{DEGSCORE_RAW_PREFIX}assign_loop_type.py",
     }
 
     def __init__(self):
@@ -62,70 +65,80 @@ class LazyLoadingDegScoreProxy:
         except FileNotFoundError:
             self.download_module()
 
-        for mod in ['assign_loop_type', 'DegScore']:
-            spec = imputil.spec_from_file_location(mod, get_cachepath(mod + '.py'))
+        for mod in ["assign_loop_type", "DegScore"]:
+            spec = imputil.spec_from_file_location(mod, get_cachepath(mod + ".py"))
             module = imputil.module_from_spec(spec)
             sys.modules[mod] = module
             module.print = lambda *args, **kwargs: None
             spec.loader.exec_module(module)
 
-        self.module = sys.modules['DegScore']
+        self.module = sys.modules["DegScore"]
 
     # This method might need a locking mechanism in the future. Currently,
     # it is not a problem because the first call is made only during the
     # generation of the intermediate report for the first iteration in the main
     # process.
     def download_module(self):
-        import urllib.request
         import os
+        import urllib.request
 
-        datadir = get_cachepath('.')
+        datadir = get_cachepath(".")
         if not os.path.isdir(datadir):
             os.makedirs(datadir)
 
         for filename, url in self.download_addresses.items():
             cachepath = get_cachepath(filename)
-            log.info(f'==> Downloading a DegScore file from {url} to {cachepath}')
+            log.info(f"==> Downloading a DegScore file from {url} to {cachepath}")
             urllib.request.urlretrieve(url, cachepath)
+
 
 call_degscore = LazyLoadingDegScoreProxy()
 
 
 class DegScoreFitness(ScoringFunction):
 
-    name = 'degscore'
-    description = 'DegScore (Eterna Predicted Degradation Rate)'
+    name = "degscore"
+    description = "DegScore (Eterna Predicted Degradation Rate)"
     priority = 15
     uses_folding = True
     uses_basepairing_prob = True
 
     arguments = [
-        ('weight',
-         dict(type=float, default=0, metavar='WEIGHT',
-              help='scoring weight for DegScore. (default: 0)')),
+        (
+            "weight",
+            dict(
+                type=float,
+                default=0,
+                metavar="WEIGHT",
+                help="scoring weight for DegScore. (default: 0)",
+            ),
+        ),
     ]
 
     def __init__(self, weight, _length_cds):
         self.weight = -weight
 
-    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):
+    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):  # type: ignore[assignment]
         if foldings:
-            degscores = [call_degscore(seq, fold['folding'])
-                        for seq, fold in zip(seqs, foldings)]
+            degscores = [
+                call_degscore(seq, fold["folding"]) for seq, fold in zip(seqs, foldings)
+            ]
         elif pairingprobs:
-            degscores = [call_degscore(seq, pairingprob['folding'])
-                        for seq, pairingprob in zip(seqs, pairingprobs)]
+            degscores = [
+                call_degscore(seq, pairingprob["folding"])
+                for seq, pairingprob in zip(seqs, pairingprobs)
+            ]
         else:
-            raise ValueError('No folding or pairing probability data is provided.')
-        
+            raise ValueError("No folding or pairing probability data is provided.")
+
         weighted_scores = [s * self.weight for s in degscores]
-        return {'degscore': weighted_scores}, {'degscore': degscores}
+        return {"degscore": weighted_scores}, {"degscore": degscores}
 
     def annotate_sequence(self, seq, folding):
-        degscore = call_degscore(seq, folding['folding'])
-        return {'degscore': degscore}
+        degscore = call_degscore(seq, folding["folding"])
+        return {"degscore": degscore}
 
     def evaluate_local(self, seq, folding):
-        degscore = call_degscore.score_by_position(seq, folding['folding'])
+        degscore = call_degscore.score_by_position(seq, folding["folding"])
         baseindex = list(range(len(seq)))
-        return {'degscore': (baseindex, degscore)}
+        return {"degscore": (baseindex, degscore)}

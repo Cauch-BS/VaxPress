@@ -25,22 +25,29 @@
 
 from . import ScoringFunction
 
+
 class UridineCountFitness(ScoringFunction):
 
-    name = 'ucount'
-    description = 'Uridines'
+    name = "ucount"
+    description = "Uridines"
     priority = 30
 
     arguments = [
-        ('weight',
-         dict(type=float, default=3.0, metavar='WEIGHT',
-              help='scoring weight for U count minimizer (default: 3.0)')),
+        (
+            "weight",
+            dict(
+                type=float,
+                default=3.0,
+                metavar="WEIGHT",
+                help="scoring weight for U count minimizer (default: 3.0)",
+            ),
+        ),
     ]
 
     def __init__(self, weight, _length_cds):
         self.weight = -weight / _length_cds * 4
 
     def score(self, seqs):
-        ucounts = [s.count('U') for s in seqs]
+        ucounts = [s.count("U") for s in seqs]
         scores = [s * self.weight for s in ucounts]
-        return {'ucount': scores}, {'ucount': ucounts}
+        return {"ucount": scores}, {"ucount": ucounts}

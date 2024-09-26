@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+    -   id: check-ast
+    -   id: check-merge-conflict
+    -   id: check-toml
+    -   id: check-yaml
+        # only include python files
+        files: \.py$
+    -   id: debug-statements
+        # only include python files
+        files: \.py$
+    -   id: trailing-whitespace  # Fixing the indentation and including it under the correct repo
+        # only include python files
+        files: \.py$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.7
+    hooks:
+    -   id: ruff
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.1
+    hooks:
+    -   id: mypy
+        files: \.py$
+

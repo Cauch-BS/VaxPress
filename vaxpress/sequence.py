@@ -1,9 +1,10 @@
 # added at 2024-06-20
 # defined the Sequence object which the mutant generate object inherits
 
-from Bio.Data import CodonTable
-import pandas as pd
 from typing import Union
+
+import pandas as pd  # type: ignore[import-untyped]
+from Bio.Data import CodonTable
 
 STOP = "*"
 
@@ -11,23 +12,23 @@ STOP = "*"
 class Sequence:
     def __init__(
         self,
-        cdsseq: str | list,
+        cdsseq: Union[str, list[str]],
         codon_table: str = "standard",
         is_protein: bool = False,
         is_cds=False,
     ):
         self.initialize_codon_table(codon_table)
-        self.codons = []
-        self.utr5 = ""
-        self.utr3 = ""
+        self.codons: list = []
+        self.utr5: str = ""
+        self.utr3: str = ""
 
         if is_protein:
-            self.cdsseq = self.backtranslate(cdsseq)
+            self.cdsseq: Union[list, str] = self.backtranslate(cdsseq)
 
         else:
-            if type(cdsseq) == str:
+            if isinstance(cdsseq, str):
                 self.cdsseq = cdsseq.upper().replace("T", "U")
-            elif type(cdsseq) == list and type(cdsseq[0]) == str:
+            elif isinstance(cdsseq, list) and isinstance(cdsseq[0], str):
                 self.cdsseq = "".join(cdsseq)
 
         if not is_cds:
@@ -82,10 +83,10 @@ class Sequence:
                 self.synonymous_codons[codon] = sorted(codons - set([codon]))
                 self.codon2aa[codon] = aa
 
-    def backtranslate(self, proteinseq: str) -> str:
+    def backtranslate(self, proteinseq: Union[str, list]) -> str:
         return "".join(next(iter(self.aa2codons[aa])) for aa in proteinseq)
 
-    def translate(self, rnaseq: str) -> str:
+    def translate(self, rnaseq: Union[str, list]) -> str:
         return "".join(
             self.codon2aa[rnaseq[i : i + 3]] for i in range(0, len(rnaseq), 3)
         )

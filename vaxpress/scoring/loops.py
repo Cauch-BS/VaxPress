@@ -25,51 +25,71 @@
 
 from . import ScoringFunction
 
+
 class LoopLengthFitness(ScoringFunction):
 
-    name = 'loop'
-    description = 'RNA Folding (Loops)'
+    name = "loop"
+    description = "RNA Folding (Loops)"
     priority = 41
     uses_folding = True
     uses_basepairing_prob = True
 
     arguments = [
-        ('weight', dict(metavar='WEIGHT',
-            type=float, default=1.5, help='scoring weight for loops (default: 1.5)')),
-        ('threshold', dict(
-            type=int, default=2, metavar='N',
-            help='minimum count of unfolded bases to be considered as a loop '
-                 '(default: 2)')),
+        (
+            "weight",
+            dict(
+                metavar="WEIGHT",
+                type=float,
+                default=1.5,
+                help="scoring weight for loops (default: 1.5)",
+            ),
+        ),
+        (
+            "threshold",
+            dict(
+                type=int,
+                default=2,
+                metavar="N",
+                help="minimum count of unfolded bases to be considered as a loop "
+                "(default: 2)",
+            ),
+        ),
     ]
 
     def __init__(self, threshold, weight, _length_cds):
         self.threshold = threshold
         self.weight = -weight / _length_cds
 
-    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):
+    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):  # type: ignore[assignment]
         loop_lengths = []
         scores = []
         if foldings:
             for fold in foldings:
-                looplen = sum(length * count
-                            for length, count in fold['loops'].items()
-                            if length >= self.threshold)
+                looplen = sum(
+                    length * count
+                    for length, count in fold["loops"].items()
+                    if length >= self.threshold
+                )
                 loop_lengths.append(looplen)
                 scores.append(looplen * self.weight)
         elif pairingprobs:
             for prob in pairingprobs:
-                looplen = sum(length * count
-                            for length, count in prob['loops'].items()
-                            if length >= self.threshold)
+                looplen = sum(
+                    length * count
+                    for length, count in prob["loops"].items()
+                    if length >= self.threshold
+                )
                 loop_lengths.append(looplen)
                 scores.append(looplen * self.weight)
         else:
-            raise ValueError('No folding or pairing probability data is provided.')
+            raise ValueError("No folding or pairing probability data is provided.")
 
-        return {'loop': scores}, {'loop': loop_lengths}
+        return {"loop": scores}, {"loop": loop_lengths}
 
     def annotate_sequence(self, seq, folding):
-        looplen = sum(length * count
-                      for length, count in folding['loops'].items()
-                      if length >= self.threshold)
-        return {'loop': looplen}
+        looplen = sum(
+            length * count
+            for length, count in folding["loops"].items()
+            if length >= self.threshold
+        )
+        return {"loop": looplen}

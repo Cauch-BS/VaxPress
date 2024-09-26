@@ -26,32 +26,37 @@
 import json
 
 opts_to_remove = [
-    'output', 'overwrite', 'quiet', 'seq_description', 'print_top_mutants',
-    'protein']
+    "output",
+    "overwrite",
+    "quiet",
+    "seq_description",
+    "print_top_mutants",
+    "protein",
+]
 opt_aliases = {
-    'n_iterations': 'iterations',
-    'n_population': 'population',
-    'n_survivors': 'survivors',
-    'lineardesign_lambda': 'lineardesign',
+    "n_iterations": "iterations",
+    "n_population": "population",
+    "n_survivors": "survivors",
+    "lineardesign_lambda": "lineardesign",
 }
+
 
 def dump_to_preset(scoreopts, execopts):
     data = {}
 
-    data.update({k: v for k, v in execopts._asdict().items()
-                 if k not in opts_to_remove})
+    data.update(
+        {k: v for k, v in execopts._asdict().items() if k not in opts_to_remove}
+    )
 
-    data['fitness'] = {}
+    data["fitness"] = {}
     for modname, args in scoreopts.items():
-        mod = data['fitness'][modname] = {}
+        mod = data["fitness"][modname] = {}
         for argname, argval in args.items():
-            if not argname.startswith('_'):
+            if not argname.startswith("_"):
                 mod[argname] = argval
 
     return json.dumps(data, indent=2)
 
+
 def load_preset(data):
-    return {
-        opt_aliases.get(k, k): v
-        for k, v in json.loads(data).items()
-    }
+    return {opt_aliases.get(k, k): v for k, v in json.loads(data).items()}

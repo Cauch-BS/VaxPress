@@ -1,5 +1,7 @@
 # VaxPress
 
+![Build Status](https://github.com/Cauch-BS/VaxPress/actions/workflows/build.yaml/badge.svg)
+
 VaxPress is a codon optimizer platform tailored for mRNA vaccine
 development. It refines coding sequences starting from protein or
 RNA sequences to boost both storage stability and *in vivo* protein
@@ -8,6 +10,8 @@ into the optimization process with just a few lines of code via a
 pluggable interface. For the detailed information about VaxPress,
 including its options and algorithmic features, please refer to the
 [VaxPress documentation page](https://vaxpress.readthedocs.io/).
+
+VaxPress has been tested on Python 3.9, 3.10, 3.11 and 3.12. 
 
 # Installation
 

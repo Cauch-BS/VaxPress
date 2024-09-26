@@ -23,24 +23,26 @@
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-import numpy as np
-import time
-import sys
 import os
-
-# import vaxpress.nsga2
-from textwrap import wrap
-from tabulate import tabulate
-from typing import Iterator, Dict, Any
+import sys
+import time
 from collections import namedtuple
 from concurrent import futures
 from itertools import cycle
-from .mutant_generator import MutantGenerator, STOP
+
+# import vaxpress.nsga2
+from textwrap import wrap
+from typing import Any, Dict, Iterator
+
+import numpy as np
+from tabulate import tabulate  # type: ignore[import-untyped]
+
+from . import __version__
+from .log import hbar, hbar_double, log
+from .mutant_generator import STOP, MutantGenerator
+from .presets import dump_to_preset
 from .sequence import Sequence
 from .sequence_evaluator import SequenceEvaluator
-from .presets import dump_to_preset
-from .log import hbar, hbar_double, log
-from . import __version__
 
 PROTEIN_ALPHABETS = "ACDEFGHIKLMNPQRSTVWY" + "*"
 RNA_ALPHABETS = "ACGU"
@@ -126,7 +128,10 @@ class CDSEvolutionChamber:
                     "Invalid protein sequence: " f'{" ".join(invalid_letters)}'
                 )
             if self.cdsseq[-1] != STOP:
-                self.cdsseq += STOP
+                if isinstance(self.cdsseq, str):
+                    self.cdsseq += STOP
+                elif isinstance(self.cdsseq, list):
+                    self.cdsseq.append(STOP)
         else:
             invalid_letters = set(self.cdsseq) - set(RNA_ALPHABETS)
             if invalid_letters:
@@ -170,8 +175,8 @@ class CDSEvolutionChamber:
             [seq.utr5] + mutantgen.initial_codons + [seq.utr3]
             for seq, mutantgen in zip(self.seqall, self.mutantall)
         ]
-        self.population_foldings = [None for _ in self.population]
-        self.population_sources = [None for _ in self.population]
+        self.population_foldings: list = [None for _ in self.population]
+        self.population_sources: list = [None for _ in self.population]
         parent_no_length = int(np.log10(self.execopts.n_survivors)) + 1
         self.format_parent_no = lambda n, length=parent_no_length: (
             format(n, f"{length}d").replace(" ", "-") if n is not None else "-" * length
@@ -211,8 +216,8 @@ class CDSEvolutionChamber:
             "".join(self.population[0])
         )
 
-        self.best_scores = []
-        self.elapsed_times = []
+        self.best_scores: list = []
+        self.elapsed_times: list = []
         self.checkpoint_file = open(self.checkpoint_path, "w")
         self.checkpoint_header_written = False
 
@@ -264,7 +269,7 @@ class CDSEvolutionChamber:
         )
 
         nextgeneration = self.population[:]
-        sources = list(range(len(nextgeneration)))
+        sources: list[int] = list(range(len(nextgeneration)))
 
         choices = None
         for begin, end, altchoices in self.alternative_mutation_fields:
@@ -286,7 +291,7 @@ class CDSEvolutionChamber:
                 self.population_foldings[parent_no],
             )
             child = self.mutantgen.generate_mutant(
-                parent, self.mutation_rate, choices, parent_folding
+                parent, self.mutation_rate, choices, parent_folding  # type: ignore[arg-type]
             )
             nextgeneration.append(child)
             sources.append(parent_no)
@@ -365,9 +370,9 @@ class CDSEvolutionChamber:
                 survivor_indices = ind_sorted[:n_survivors]
                 survivors = [self.population[i] for i in survivor_indices]
                 survivor_foldings = [foldings[i] for i in survivor_indices]
-                survivor_bpps = [
+                survivor_bpps = [  # noqa: F841
                     pairingprobs[i] for i in survivor_indices
-                ]  # noqa: F841
+                ]
                 self.best_scores.append(total_scores[ind_sorted[0]])
 
                 # Write the evaluation result of the initial sequence in

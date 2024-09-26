@@ -23,57 +23,70 @@
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from . import ScoringFunction
 from ..sequence import Sequence
+from . import ScoringFunction
+
 
 class StartCodonStructureFitness(ScoringFunction):
 
-    name = 'start_str'
-    description = 'RNA Folding (Structure near Start Codon)'
+    name = "start_str"
+    description = "RNA Folding (Structure near Start Codon)"
     priority = 42
     uses_folding = True
     uses_basepairing_prob = True
 
     arguments = [
-        ('weight', dict(
-            type=int, default=1, metavar='WEIGHT',
-            help='penalty weight for folded start codon region (default: 1)')),
-        ('width', dict(
-            type=int, default=15, metavar='WIDTH',
-            help='width in nt of unfolded region near the start codon (default: 15)')),
+        (
+            "weight",
+            dict(
+                type=int,
+                default=1,
+                metavar="WEIGHT",
+                help="penalty weight for folded start codon region (default: 1)",
+            ),
+        ),
+        (
+            "width",
+            dict(
+                type=int,
+                default=15,
+                metavar="WIDTH",
+                help="width in nt of unfolded region near the start codon (default: 15)",
+            ),
+        ),
     ]
 
-    penalty_metric_flags = {}
+    penalty_metric_flags: dict = {}
 
     def __init__(self, width, weight, _length_cds):
         self.width = width
         self.weight = -weight
 
         if weight != 0:
-            self.penalty_metric_flags[self.name] = 's'
+            self.penalty_metric_flags[self.name] = "s"
 
-    def score(self, seqs: str, foldings: dict = None, pairingprobs: dict = None):
+    def score(self, seqs: str, foldings: dict = None, pairingprobs: dict = None):  # type: ignore[assignment]
         metrics = []
         scores = []
         start_at = len(Sequence(seqs[0], is_cds=False).utr5)
         if foldings:
             for fold in foldings:
-                start_structure = fold['folding'][start_at:(start_at + self.width)]
+                start_structure = fold["folding"][start_at : (start_at + self.width)]
 
-                start_folded = start_structure.count('(') + start_structure.count(')')
+                start_folded = start_structure.count("(") + start_structure.count(")")
                 metrics.append(start_folded)
                 scores.append(start_folded * self.weight)
         elif pairingprobs:
             for prob in pairingprobs:
-                start_structure = prob['folding'][start_at:(start_at + self.width)]
+                start_structure = prob["folding"][start_at : (start_at + self.width)]
 
-                start_folded = start_structure.count('(') + start_structure.count(')')
+                start_folded = start_structure.count("(") + start_structure.count(")")
                 metrics.append(start_folded)
                 scores.append(start_folded * self.weight)
 
-        return {'start_str': scores}, {'start_str': metrics}
+        return {"start_str": scores}, {"start_str": metrics}
 
     def annotate_sequence(self, seq, folding):
-        start_structure = folding['folding'][:self.width]
-        start_folded = start_structure.count('(') + start_structure.count(')')
-        return {'start_str': start_folded}
+        start_structure = folding["folding"][: self.width]
+        start_folded = start_structure.count("(") + start_structure.count(")")
+        return {"start_str": start_folded}

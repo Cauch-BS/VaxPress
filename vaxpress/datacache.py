@@ -25,7 +25,8 @@
 
 import os
 
-default_cachedir = os.path.join(os.path.expanduser('~'), '.cache', 'vaxpress')
+default_cachedir = os.path.join(os.path.expanduser("~"), ".cache", "vaxpress")
+
 
 def get_cachepath(filename):
     return os.path.join(default_cachedir, filename)

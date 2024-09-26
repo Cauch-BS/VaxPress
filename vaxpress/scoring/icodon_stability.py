@@ -26,23 +26,25 @@
 from . import ScoringFunction
 
 ICODON_SPECIES_MAPPING = {
-    'Homo sapiens': 'human',
-    'Mus musculus': 'mouse',
-    'Danio rerio': 'zebrafish',
+    "Homo sapiens": "human",
+    "Mus musculus": "mouse",
+    "Danio rerio": "zebrafish",
 }
+
 
 def check_iCodon_availability(kls):
     try:
-        import rpy2.robjects.packages as rpackages
+        import rpy2.robjects.packages as rpackages  # type: ignore[import-untyped]
     except ModuleNotFoundError:
         return
 
     try:
-        rpackages.importr('iCodon')
+        rpackages.importr("iCodon")
     except rpackages.PackageNotInstalledError:
         return
 
     return kls
+
 
 @check_iCodon_availability
 class iCodonStabilityFitness(ScoringFunction):
@@ -50,15 +52,21 @@ class iCodonStabilityFitness(ScoringFunction):
     iCodon_initialized = False
     predfunc = None
 
-    name = 'iCodon'
-    description = 'iCodon'
+    name = "iCodon"
+    description = "iCodon"
     priority = 10
 
-    requires = ['species']
+    requires = ["species"]
     arguments = [
-        ('weight', dict(
-            type=float, default=1.0, metavar='WEIGHT',
-            help='scoring weight for iCodon predicted stability (default: 1.0)')),
+        (
+            "weight",
+            dict(
+                type=float,
+                default=1.0,
+                metavar="WEIGHT",
+                help="scoring weight for iCodon predicted stability (default: 1.0)",
+            ),
+        ),
     ]
 
     def __init__(self, weight, _species, _length_cds):
@@ -71,15 +79,18 @@ class iCodonStabilityFitness(ScoringFunction):
     def score(self, seqs):
         if not self.iCodon_initialized:
             import os
-            os.environ['TZ'] = 'UTC' # dplyr requires this to run in singularity
+
+            os.environ["TZ"] = "UTC"  # dplyr requires this to run in singularity
 
             import rpy2.robjects.packages as rpackages
-            rpackages.importr('iCodon')
-            rpackages.importr('stringr')
+
+            rpackages.importr("iCodon")
+            rpackages.importr("stringr")
 
             import rpy2.robjects as ro
-            ro.r['options'](warn=-1)
-            self.predfunc = ro.r['predict_stability'](self.species)
+
+            ro.r["options"](warn=-1)
+            self.predfunc = ro.r["predict_stability"](self.species)
 
             self.iCodon_initialized = True
 
@@ -91,4 +102,4 @@ class iCodonStabilityFitness(ScoringFunction):
 
         pred = [float(results[s]) for s in seqs]
         scores = [s * self.weight for s in pred]
-        return {'pred_stability': scores}, {'pred_stability': pred}
+        return {"pred_stability": scores}, {"pred_stability": pred}
