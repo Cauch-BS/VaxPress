@@ -137,6 +137,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pango-1.54.0-h4c5309f_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.44-hba22ea6_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/peppy-0.40.6-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pika-1.3.1-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/pip-24.2-pyh8b19718_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.43.2-h59595ed_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pkgutil-resolve-name-1.3.10-pyhd8ed1ab_1.conda
@@ -224,12 +225,17 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.1-h4ab18f5_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.23.0-py312hef9b889_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.6-ha6fb4c9_0.conda
+      - pypi: https://files.pythonhosted.org/packages/85/66/cad391d83b7266a667c85c826bb6c0d7f68519a0eed7634098c12fb39a4b/aio_pika-9.4.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/2e/be/1a613ae1564426f86650ff58c351902895aa969f7e537e74bfd568f5c8bf/aiormq-6.8.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/fd/e4bda6228637ecae5732162b5ac2a5a822e2ba8e546eb4997cde51b231a3/build-1.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/39/5f/ae76df3876e3ff25bda8266c13d8c71c7406d13146e016467bb58d117f23/linearfold_unofficial-0.1-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/59/ee/9def4c281d6d331b12ff47965084e814337deaeab7aeddd5782e422b513d/linearpartition_unofficial-0.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/d3/c8/529101d7176fe7dfe1d99604e48d69c5dfdcadb4f06561f465c8ef12b4df/multidict-6.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/ac/8d/c1e93296e109a320e508e38118cf7d1fc2a4d1c2ec64de78565b3c445eb5/pamqp-3.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ae/f3/431b9d5fe7d14af7a32340792ef43b8a714e7726f1d7b69cc4e8e7a3f1d7/pyproject_hooks-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/63/fc100e1dce29bf9b1b3448a30a553365aaa103f7d7527f40ea13aabe7e89/pytrf-1.3.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/72/f2/5c17a51459fe4f2bcf5f9bfb269aef2c35d1776cb2b03b62543d112bfb82/ViennaRNA-2.6.4.tar.gz
+      - pypi: https://files.pythonhosted.org/packages/47/a0/c1404aa8c7e025aa05a81f3a34c42131f8b11836e49450e1558bcd64a3bb/yarl-1.13.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 packages:
 - kind: conda
   name: _libgcc_mutex
@@ -291,6 +297,27 @@ packages:
   purls: []
   size: 20798
   timestamp: 1720621358501
+- kind: pypi
+  name: aio-pika
+  version: 9.4.3
+  url: https://files.pythonhosted.org/packages/85/66/cad391d83b7266a667c85c826bb6c0d7f68519a0eed7634098c12fb39a4b/aio_pika-9.4.3-py3-none-any.whl
+  sha256: f1423d2d5a8b7315d144efe1773763bf687ac17aa1535385982687e9e5ed49bb
+  requires_dist:
+  - aiormq>=6.8.0,<6.9.0
+  - setuptools ; python_version < '3.8'
+  - typing-extensions ; python_version < '3.8'
+  - yarl
+  requires_python: '>=3.8,<4.0'
+- kind: pypi
+  name: aiormq
+  version: 6.8.1
+  url: https://files.pythonhosted.org/packages/2e/be/1a613ae1564426f86650ff58c351902895aa969f7e537e74bfd568f5c8bf/aiormq-6.8.1-py3-none-any.whl
+  sha256: 5da896c8624193708f9409ffad0b20395010e2747f22aa4150593837f40aa017
+  requires_dist:
+  - pamqp==3.3.0
+  - setuptools ; python_version < '3.8'
+  - yarl
+  requires_python: '>=3.8,<4.0'
 - kind: conda
   name: amply
   version: 0.1.6
@@ -2448,6 +2475,14 @@ packages:
   - pkg:pypi/mdurl?source=hash-mapping
   size: 14680
   timestamp: 1704317789138
+- kind: pypi
+  name: multidict
+  version: 6.1.0
+  url: https://files.pythonhosted.org/packages/d3/c8/529101d7176fe7dfe1d99604e48d69c5dfdcadb4f06561f465c8ef12b4df/multidict-6.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  sha256: 4b820514bfc0b98a30e3d85462084779900347e4d49267f747ff54060cc33925
+  requires_dist:
+  - typing-extensions>=4.1.0 ; python_version < '3.11'
+  requires_python: '>=3.8'
 - kind: conda
   name: nbformat
   version: 5.10.4
@@ -2562,6 +2597,26 @@ packages:
   - pkg:pypi/packaging?source=hash-mapping
   size: 50290
   timestamp: 1718189540074
+- kind: pypi
+  name: pamqp
+  version: 3.3.0
+  url: https://files.pythonhosted.org/packages/ac/8d/c1e93296e109a320e508e38118cf7d1fc2a4d1c2ec64de78565b3c445eb5/pamqp-3.3.0-py2.py3-none-any.whl
+  sha256: c901a684794157ae39b52cbf700db8c9aae7a470f13528b9d7b4e5f7202f8eb0
+  requires_dist:
+  - lxml ; extra == 'codegen'
+  - requests ; extra == 'codegen'
+  - yapf ; extra == 'codegen'
+  - coverage ; extra == 'testing'
+  - flake8 ; extra == 'testing'
+  - flake8-comprehensions ; extra == 'testing'
+  - flake8-deprecated ; extra == 'testing'
+  - flake8-import-order ; extra == 'testing'
+  - flake8-print ; extra == 'testing'
+  - flake8-quotes ; extra == 'testing'
+  - flake8-rst-docstrings ; extra == 'testing'
+  - flake8-tuple ; extra == 'testing'
+  - yapf ; extra == 'testing'
+  requires_python: '>=3.7'
 - kind: conda
   name: pandas
   version: 2.2.3
@@ -2653,6 +2708,23 @@ packages:
   - pkg:pypi/peppy?source=hash-mapping
   size: 29393
   timestamp: 1726009631918
+- kind: conda
+  name: pika
+  version: 1.3.1
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/pika-1.3.1-pyhd8ed1ab_0.tar.bz2
+  sha256: 98a7aff11eaaa541c264bae4170ed926f3b35f610e57a2db480f87d6591767b1
+  md5: 4c1ddb5ba3dafabd73f61f625550976b
+  depends:
+  - python >=3.6
+  license: BSD-3-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/pika?source=hash-mapping
+  size: 108593
+  timestamp: 1667818173181
 - kind: conda
   name: pip
   version: '24.2'
@@ -4224,6 +4296,15 @@ packages:
   purls: []
   size: 89141
   timestamp: 1641346969816
+- kind: pypi
+  name: yarl
+  version: 1.13.1
+  url: https://files.pythonhosted.org/packages/47/a0/c1404aa8c7e025aa05a81f3a34c42131f8b11836e49450e1558bcd64a3bb/yarl-1.13.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  sha256: 3fdbf0418489525231723cdb6c79e7738b3cbacbaed2b750cb033e4ea208f220
+  requires_dist:
+  - idna>=2.0
+  - multidict>=4.0
+  requires_python: '>=3.8'
 - kind: conda
   name: yte
   version: 1.5.4
