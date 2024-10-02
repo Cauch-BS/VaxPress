@@ -1,6 +1,7 @@
 import os
 import subprocess
 import pathlib
+from time import localtime
 
 PROJECT = "hybrid-sentry-434815-v3"
 MACHINE_TYPE = "c2d-highcpu-56"
@@ -12,8 +13,8 @@ rule all:
 
 rule create_instance:
     params:
-        INSTANCE_NAME=config['instance-name'],
-        ZONE=config['zone']
+        INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
+        ZONE=config.get("zone", "asia-south1-a")
     output: "instance_created.txt"
     shell:
         """
@@ -27,8 +28,8 @@ rule create_instance:
 rule add_ssh_key_to_instance:
     input: "instance_created.txt"
     params:
-        INSTANCE_NAME=config['instance-name'],
-        ZONE=config['zone']
+        INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
+        ZONE=config.get("zone", "asia-south1-a")
     output: "ssh_key_added.txt"
     shell:
         """  
@@ -55,8 +56,9 @@ rule broadcast_data:
     params: 
         seq=config['input'],
         config=config['vaxpress-config'],
-        INSTANCE_NAME=config['instance-name'],
-        ZONE=config['zone']
+        SCRIPT = workflow.source_path("./gcloud-setup.sh"),
+        INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
+        ZONE=config.get("zone", "asia-south1-a")
     output: "copied_data.txt"
     shell:
         """
@@ -64,7 +66,7 @@ rule broadcast_data:
         --zone={params.ZONE} \
         && gcloud compute scp --strict-host-key-checking=no {params.config} {params.INSTANCE_NAME}:config.json \
             --zone={params.ZONE} \
-        && gcloud compute scp --strict-host-key-checking=no $HOME/VaxPress/VaxPress/gcloud-setup.sh {params.INSTANCE_NAME}:~ \
+        && gcloud compute scp --strict-host-key-checking=no {params.SCRIPT} {params.INSTANCE_NAME}:~ \
             --zone={params.ZONE} \
         && touch {output}
         """
@@ -73,8 +75,8 @@ rule broadcast_data:
 rule run_shell_script:
     input: "copied_data.txt"
     params:
-        INSTANCE_NAME=config['instance-name'],
-        ZONE=config['zone']
+        INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
+        ZONE=config.get("zone", "asia-south1-a")
     output: "ran_script.txt"
     shell:
         """
@@ -86,8 +88,8 @@ rule run_shell_script:
 rule run_vaxpress:
     input: "ran_script.txt"
     params:
-        INSTANCE_NAME=config['instance-name'],
-        ZONE=config['zone']
+        INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
+        ZONE=config.get("zone", "asia-south1-a")
     output: "simulation_complete.txt"
     shell:
         """
@@ -100,8 +102,8 @@ rule download_output:
     input: "simulation_complete.txt"
     params:
         output=config['output-dir'],
-        INSTANCE_NAME=config['instance-name'],
-        ZONE=config['zone']
+        INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
+        ZONE=config.get("zone", "asia-south1-a")
     output: "output_downloaded.txt"
     shell:
         """
@@ -112,8 +114,8 @@ rule download_output:
 rule delete_instance:
     input: "output_downloaded.txt"
     params:
-        INSTANCE_NAME=config['instance-name'],
-        ZONE=config['zone']
+        INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
+        ZONE=config.get("zone", "asia-south1-a")
     output: "instance_deleted.txt"
     shell:
         """
