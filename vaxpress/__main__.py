@@ -302,10 +302,18 @@ def parse_options(scoring_funcs, preset, default_off):
     )
     grp.add_argument(
         "--folding-engine",
-        default="vienna",
+        default="viennarna",
         metavar="NAME",
-        choices=["vienna", "linearfold"],
-        help="RNA folding engine: vienna or linearfold " "(default: vienna)",
+        choices=["viennarna", "linearfold"],
+        help="RNA folding engine: viennarna or linearfold " "(default: viennarna)",
+    )
+    grp.add_argument(
+        "--partition-engine",
+        default="viennarna",
+        metavar="NAME",
+        choices=["viennarna", "linearpartition"],
+        help="RNA partition function engine: viennarna or linearpartition "
+        "(default: viennarna)",
     )
     grp.add_argument(
         "--default-off",
@@ -502,6 +510,7 @@ def run_vaxpress():
         lineardesign_lambda=args.lineardesign,
         lineardesign_omit_start=args.lineardesign_omit_start,
         folding_engine=args.folding_engine,
+        partition_engine=args.partition_engine,
     )
 
     next_report = 0  # Generate the first report immediately.

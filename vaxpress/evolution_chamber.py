@@ -75,6 +75,7 @@ ExecutionOptions = namedtuple(
         "lineardesign_lambda",
         "lineardesign_omit_start",
         "folding_engine",
+        "partition_engine",
     ],
 )
 
