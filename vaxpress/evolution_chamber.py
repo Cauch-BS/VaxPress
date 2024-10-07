@@ -28,7 +28,6 @@ import time
 import sys
 import os
 
-# import vaxpress.nsga2
 from textwrap import wrap
 from tabulate import tabulate
 from typing import Iterator, Dict, Any
@@ -76,6 +75,8 @@ ExecutionOptions = namedtuple(
         "lineardesign_omit_start",
         "folding_engine",
         "partition_engine",
+        "url",
+        "queue",
     ],
 )
 
@@ -113,6 +114,8 @@ class CDSEvolutionChamber:
         self.n_processes = exec_options.processes
         self.quiet = exec_options.quiet
         self.print_top_mutants = exec_options.print_top_mutants
+        self.url = exec_options.url
+        self.queue = exec_options.queue
 
         self.initialize()
 
@@ -196,7 +199,6 @@ class CDSEvolutionChamber:
             ]
         else:
             self.alternative_mutation_fields = []
-
         self.seqeval = SequenceEvaluator(
             self.scoringfuncs,
             self.scoreopts,
@@ -205,9 +207,10 @@ class CDSEvolutionChamber:
             self.species,
             self.length_cds,
             self.quiet,
+            self.url,
+            self.queue,
         )
         self.penalty_metric_flags = self.seqeval.penalty_metric_flags  # XXX
-
         self.initial_sequence_evaluation = self.seqeval.prepare_evaluation_data(
             "".join(self.population[0])
         )
@@ -330,8 +333,8 @@ class CDSEvolutionChamber:
             if self.execopts.n_iterations == 0:
                 # Only the initial sequences are evaluated
                 self.flatten_seqs = ["".join(seq) for seq in self.population]
-                total_scores, scores, metrics, foldings, pairingprobs = (
-                    self.seqeval.evaluate(self.flatten_seqs, executor)
+                total_scores, scores, metrics, foldings = self.seqeval.find_fitness(
+                    self.flatten_seqs, executor
                 )
                 if total_scores is None:
                     error_code = 1
@@ -350,8 +353,8 @@ class CDSEvolutionChamber:
                 except StopIteration:
                     break
 
-                total_scores, scores, metrics, foldings, pairingprobs = (
-                    self.seqeval.evaluate(self.flatten_seqs, executor)
+                total_scores, scores, metrics, foldings = self.seqeval.find_fitness(
+                    self.flatten_seqs, executor
                 )
                 if total_scores is None:
                     # Termination due to errors from one or more scoring functions
@@ -366,9 +369,6 @@ class CDSEvolutionChamber:
                 survivor_indices = ind_sorted[:n_survivors]
                 survivors = [self.population[i] for i in survivor_indices]
                 survivor_foldings = [foldings[i] for i in survivor_indices]
-                survivor_bpps = [
-                    pairingprobs[i] for i in survivor_indices
-                ]  # noqa: F841
                 self.best_scores.append(total_scores[ind_sorted[0]])
 
                 # Write the evaluation result of the initial sequence in

@@ -27,3 +27,5 @@ aio-pika = ">=9.4.3,<10"
 [pypi-dependencies]
 pytrf = ">=1.3.3, <2"
 linearpartition-unofficial = ">=0.3, <0.4"
+pamqp = "*"
+aio-pika = "*"

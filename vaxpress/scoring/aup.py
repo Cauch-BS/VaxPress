@@ -1,6 +1,5 @@
 from vaxpress.scoring import ScoringFunction
 import numpy as np
-from scipy import sparse
 
 
 class PairingProbFitness(ScoringFunction):
@@ -48,11 +47,11 @@ class PairingProbFitness(ScoringFunction):
         self.length = _length_cds
         self.trans_table = bytes.maketrans(b"ACGU", b"\x00\x01\x02\x03")
 
-    def score(self, seqs, pairingprobs):
+    def score(self, seqs, foldings):
         weighted_aups = []
         weights = np.array([self.a_weight, 1, 1, self.u_weight])  # ACGU
-        for seq, pairingprob in zip(seqs, pairingprobs):
-            pi_cooarray = pairingprob["pi_array"]
+        for seq, folding in zip(seqs, foldings):
+            pi_cooarray = folding["pi_array"]
             pi_array = pi_cooarray.sum(axis=0)
             seqindex = np.frombuffer(
                 seq.encode().translate(self.trans_table), dtype=np.uint8
@@ -60,19 +59,19 @@ class PairingProbFitness(ScoringFunction):
             # map weights to index
             wi = np.choose(seqindex, weights)
             xi = 1.0 - pi_array
-            weighted_aup = np.average(xi, weights=wi)
+            weighted_aup = np.dot(xi, wi) / np.sum(wi)
             weighted_aups.append(weighted_aup)
         scores = [weighted_aup * self.weight for weighted_aup in weighted_aups]
         return {self.name: scores}, {self.name: weighted_aups}
 
-    def annotate_sequence(self, seq, pairingprob):
+    def annotate_sequence(self, seq, folding):
         weights = np.array([self.a_weight, 1, 1, self.u_weight])
-        pi_cooarray = pairingprob["pi_array"]
+        pi_cooarray = folding["pi_array"]
         pi_array = pi_cooarray.sum(axis=0)
         seqindex = np.frombuffer(
             seq.encode().translate(self.trans_table), dtype=np.uint8
         )
         wi = np.choose(seqindex, weights)
         xi = 1 - pi_array
-        weighted_aup = np.average(xi, weights=wi)
+        weighted_aup = np.dot(xi, wi) / np.sum(wi)
         return {"aup": weighted_aup}

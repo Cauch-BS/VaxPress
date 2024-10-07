@@ -434,6 +434,22 @@ def parse_options(scoring_funcs, preset, default_off):
         "when calling LinearDesign (default: 5)",
     )
 
+    grp = parser.add_argument_group("VaxiFold Options")
+    grp.add_argument(
+        "--url",
+        type=str,
+        default=None,
+        metavar="URL",
+        help="URL of the VaxiFold server",
+    )
+    grp.add_argument(
+        "--queue",
+        type=str,
+        default=None,
+        metavar="QUEUE",
+        help="Queue name for the VaxiFold server",
+    )
+
     argmaps = []
     for func in sorted(scoring_funcs.values(), key=lambda f: f.priority):
         argmap = func.add_argument_parser(parser)
@@ -511,6 +527,8 @@ def run_vaxpress():
         lineardesign_omit_start=args.lineardesign_omit_start,
         folding_engine=args.folding_engine,
         partition_engine=args.partition_engine,
+        url=args.url,
+        queue=args.queue,
     )
 
     next_report = 0  # Generate the first report immediately.
