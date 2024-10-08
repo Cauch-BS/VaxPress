@@ -308,10 +308,15 @@ class CDSEvolutionChamber:
         nextgeneration = self.population[:]
         nextgen_sources = list(range(len(nextgeneration)))
 
+        parents = self.population[:10] if len(self.population) > 10 else self.population
+        parents_foldings = (
+            self.population_foldings[:10]
+            if len(self.population) > 10
+            else self.population_foldings
+        )
+
         traverse = self.mutantgen.traverse_all_single_mutations
-        for i, (seedseq, seedfold) in enumerate(
-            zip(self.population, self.population_foldings)
-        ):
+        for i, (seedseq, seedfold) in enumerate(zip(parents, parents_foldings)):
             for child in traverse(seedseq, seedfold):
                 nextgeneration.append(child)
                 nextgen_sources.append(i)
@@ -366,10 +371,11 @@ class CDSEvolutionChamber:
                     ind_sorted = self.prioritized_sort_by_parents(total_scores)
                 else:
                     ind_sorted = np.argsort(total_scores)[::-1]
-                survivor_indices = ind_sorted[:n_survivors]
+                idx_sorted = [int(i) for i in ind_sorted]
+                survivor_indices = idx_sorted[:n_survivors]
                 survivors = [self.population[i] for i in survivor_indices]
                 survivor_foldings = [foldings[i] for i in survivor_indices]
-                self.best_scores.append(total_scores[ind_sorted[0]])
+                self.best_scores.append(total_scores[idx_sorted[0]])
 
                 # Write the evaluation result of the initial sequence in
                 # the first iteration
@@ -378,7 +384,7 @@ class CDSEvolutionChamber:
                         0, [0], total_scores, scores, metrics, foldings
                     )
 
-                self.print_eval_results(total_scores, metrics, ind_sorted, n_parents)
+                self.print_eval_results(total_scores, metrics, idx_sorted, n_parents)
                 self.write_checkpoint(
                     iter_no, survivor_indices, total_scores, scores, metrics, foldings
                 )
@@ -390,6 +396,7 @@ class CDSEvolutionChamber:
                     " # Last best scores: "
                     + " ".join(f"{s:.3f}" for s in self.best_scores[-5:])
                 )
+
                 if (
                     len(self.best_scores) >= self.execopts.winddown_trigger
                     and iter_no - last_winddown > self.execopts.winddown_trigger

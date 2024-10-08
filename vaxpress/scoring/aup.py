@@ -60,7 +60,8 @@ class PairingProbFitness(ScoringFunction):
             wi = np.choose(seqindex, weights)
             xi = 1.0 - pi_array
             weighted_aup = np.dot(xi, wi) / np.sum(wi)
-            weighted_aups.append(weighted_aup)
+            weighted_aup_val = weighted_aup.item()
+            weighted_aups.append(weighted_aup_val)
         scores = [weighted_aup * self.weight for weighted_aup in weighted_aups]
         return {self.name: scores}, {self.name: weighted_aups}
 
@@ -74,4 +75,5 @@ class PairingProbFitness(ScoringFunction):
         wi = np.choose(seqindex, weights)
         xi = 1 - pi_array
         weighted_aup = np.dot(xi, wi) / np.sum(wi)
-        return {"aup": weighted_aup}
+        weighted_aup_val = weighted_aup.item()
+        return {"aup": weighted_aup_val}

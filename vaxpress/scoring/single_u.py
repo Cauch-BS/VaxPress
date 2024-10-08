@@ -39,7 +39,8 @@ class UnpairedUridineFitness(ScoringFunction):
             xi_array = 1 - pi_array
             # sum only the Pi of the U index
             total_unpaired_u_probs = np.dot(xi_array, u_idx)
-            U_sups.append(total_unpaired_u_probs)
+            unpaired_u_prob_val = total_unpaired_u_probs.item()
+            U_sups.append(unpaired_u_prob_val)
         scores = [u_sup * self.weight for u_sup in U_sups]
 
         return {self.name: scores}, {self.name: U_sups}
@@ -53,4 +54,5 @@ class UnpairedUridineFitness(ScoringFunction):
         pi_array = pi_cooarray.sum(axis=0)
         xi_array = 1 - pi_array
         U_sup = np.dot(xi_array, U_idx)
+        U_sup = U_sup.item()
         return {self.name: U_sup}
