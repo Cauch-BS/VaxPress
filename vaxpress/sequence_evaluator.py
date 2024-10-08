@@ -24,6 +24,7 @@
 #
 
 import sys
+import os
 import re
 import pylru  # type: ignore
 import asyncio
@@ -110,7 +111,10 @@ class SequenceEvaluator:
         species,
         length_cds,
         quiet,
-        url=None,
+        host=None,
+        port=None,
+        user=None,
+        passwd=None,
         queue=None,
     ):
         self.scoring_funcs = scoring_funcs
@@ -122,8 +126,6 @@ class SequenceEvaluator:
         self.species = species
 
         self.quiet = quiet
-        self.url = url
-        self.queue = queue
         self.use_fold = True
         self.foldeval = ParseStructure()
         self.folding_cache = pylru.lrucache(self.folding_cache_size)
@@ -133,16 +135,57 @@ class SequenceEvaluator:
         self.scorefuncs_bpp = []
         self.annotationfuncs = []
         self.penalty_metric_flags = {}
-        self.vaxifold = AsyncVaxiFoldClient(
-            self.url,
-            self.queue,
-            self.execopts.folding_engine,
-            self.execopts.partition_engine,
-        )
+        self.host = host
+        self.port = port
+        self.user = user
+        self.passwd = passwd
+        self.queue = queue
 
         self.initialize()
 
     def initialize(self):
+
+        host = self.host
+        port = self.port
+        user = self.user
+        passwd = self.passwd
+        queue = self.queue
+
+        if not host:
+            if "RABBITMQ_HOST" in os.environ:
+                host = os.environ["RABBITMQ_HOST"]
+            else:
+                raise ConnectionError("RabbitMQ host not specified.")
+        if not port:
+            if "RABBITMQ_PORT" in os.environ:
+                port = os.environ["RABBITMQ_PORT"]
+            else:
+                raise ConnectionError("RabbitMQ port not specified.")
+        if not user:
+            if "RABBITMQ_USER" in os.environ:
+                user = os.environ["RABBITMQ_USER"]
+            else:
+                raise ConnectionError("RabbitMQ user not specified.")
+        if not passwd:
+            if "RABBITMQ_PASS" in os.environ:
+                passwd = os.environ["RABBITMQ_PASS"]
+            else:
+                raise ConnectionError("RabbitMQ password not specified.")
+        if queue is None:
+            if "VAXIFOLD_QUEUE" in os.environ:
+                queue = os.environ["VAXIFOLD_QUEUE"]
+            else:
+                raise ConnectionError("VaxiFold queue not specified.")
+
+        self.vaxifold = AsyncVaxiFoldClient(
+            host=host,
+            port=port,
+            user=user,
+            passwd=passwd,
+            queue=queue,
+            folding_engine=self.execopts.folding_engine,
+            partition_engine=self.execopts.partition_engine,
+        )
 
         additional_opts = {
             "_length_cds": self.length_cds,

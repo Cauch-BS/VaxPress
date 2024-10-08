@@ -75,7 +75,10 @@ ExecutionOptions = namedtuple(
         "lineardesign_omit_start",
         "folding_engine",
         "partition_engine",
-        "url",
+        "host",
+        "port",
+        "user",
+        "passwd",
         "queue",
     ],
 )
@@ -114,7 +117,10 @@ class CDSEvolutionChamber:
         self.n_processes = exec_options.processes
         self.quiet = exec_options.quiet
         self.print_top_mutants = exec_options.print_top_mutants
-        self.url = exec_options.url
+        self.host = exec_options.host
+        self.port = exec_options.port
+        self.user = exec_options.user
+        self.passwd = exec_options.passwd
         self.queue = exec_options.queue
 
         self.initialize()
@@ -207,7 +213,10 @@ class CDSEvolutionChamber:
             self.species,
             self.length_cds,
             self.quiet,
-            self.url,
+            self.host,
+            self.port,
+            self.user,
+            self.passwd,
             self.queue,
         )
         self.penalty_metric_flags = self.seqeval.penalty_metric_flags  # XXX

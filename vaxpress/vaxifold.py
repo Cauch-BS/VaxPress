@@ -10,8 +10,13 @@ from tqdm import tqdm
 
 class AsyncVaxiFoldClient:
 
-    def __init__(self, url, queue, folding_engine, partition_engine):
-        self.url = url
+    def __init__(
+        self, host, port, user, passwd, queue, folding_engine, partition_engine
+    ):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.passwd = passwd
         self.queue = queue
         self.folding_engine = folding_engine
         self.partition_engine = partition_engine
@@ -20,7 +25,13 @@ class AsyncVaxiFoldClient:
         self.results = {}
 
     async def connect(self):
-        self.connection = await connect(self.url)
+        self.connection = await connect(
+            host=self.host,
+            port=self.port,
+            login=self.user,
+            password=self.passwd,
+            virtualhost="/",
+        )
         self.channel = await self.connection.channel()
         self.callback_queue = await self.channel.declare_queue(exclusive=True)
         await self.callback_queue.consume(self.on_response, no_ack=False)
@@ -55,7 +66,7 @@ class AsyncVaxiFoldClient:
         if callid not in self.progress_bars:
             total_tasks = len(self.results[callid][1])
             self.progress_bars[callid] = tqdm(
-                total=total_tasks, desc=f"Folding seqs", unit="requests"
+                total=total_tasks, desc="Folding seqs", unit="requests"
             )
 
         self.progress_bars[callid].update(1)

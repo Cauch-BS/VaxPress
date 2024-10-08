@@ -436,11 +436,32 @@ def parse_options(scoring_funcs, preset, default_off):
 
     grp = parser.add_argument_group("VaxiFold Options")
     grp.add_argument(
-        "--url",
+        "--host",
         type=str,
         default=None,
-        metavar="URL",
-        help="URL of the VaxiFold server",
+        metavar="HOST",
+        help="HOST of the RabbitMQ server",
+    )
+    grp.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        metavar="PORT",
+        help="PORT of the RabbitMQ server",
+    )
+    grp.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        metavar="USER",
+        help="User name for the VaxiFold server",
+    )
+    grp.add_argument(
+        "--passwd",
+        type=str,
+        default=None,
+        metavar="PASSWD",
+        help="Password for the VaxiFold server",
     )
     grp.add_argument(
         "--queue",
@@ -527,7 +548,10 @@ def run_vaxpress():
         lineardesign_omit_start=args.lineardesign_omit_start,
         folding_engine=args.folding_engine,
         partition_engine=args.partition_engine,
-        url=args.url,
+        host=args.host,
+        port=args.port,
+        user=args.user,
+        passwd=args.passwd,
         queue=args.queue,
     )
 
