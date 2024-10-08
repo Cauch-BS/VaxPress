@@ -1,6 +1,9 @@
 version: 2
-updates: 
+updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    ignore:
+      - dependency-name: "sphinx-rtd-theme"
+      - dependency-name: "sphinxemoji"
