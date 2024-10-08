@@ -5,6 +5,7 @@ import asyncio
 from struct import unpack
 import numpy as np
 from scipy import sparse  # type: ignore
+from tqdm import tqdm
 
 
 class AsyncVaxiFoldClient:
@@ -14,7 +15,7 @@ class AsyncVaxiFoldClient:
         self.queue = queue
         self.folding_engine = folding_engine
         self.partition_engine = partition_engine
-
+        self.progress_bars = {}
         self.futures = {}
         self.results = {}
 
@@ -50,13 +51,21 @@ class AsyncVaxiFoldClient:
         result = self.parse_partition_response(message.body)
         self.results[callid][1][seqid] = result
         self.results[callid][0] -= 1
-        print(".", end="", flush=True)
+
+        if callid not in self.progress_bars:
+            total_tasks = len(self.results[callid][1])
+            self.progress_bars[callid] = tqdm(
+                total=total_tasks, desc=f"Folding seqs", unit="requests"
+            )
+
+        self.progress_bars[callid].update(1)
 
         if self.results[callid][0] <= 0:
             future = self.futures.pop(callid)
             call_results = self.results.pop(callid)[1]
             future.set_result(call_results)
-            print(" done")
+            self.progress_bars[callid].close()
+            self.progress_bars.pop(callid, None)
 
     @staticmethod
     def parse_partition_response(response):

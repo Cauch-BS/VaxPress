@@ -23,6 +23,7 @@
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
+import sys
 import re
 import pylru  # type: ignore
 import asyncio
@@ -30,6 +31,7 @@ from concurrent import futures
 from collections import Counter
 from .vaxifold import AsyncVaxiFoldClient
 from .log import hbar_stars, log
+from tqdm import tqdm
 
 
 class ParseStructure:
@@ -141,8 +143,6 @@ class SequenceEvaluator:
         self.initialize()
 
     def initialize(self):
-        self._fold = self.vaxifold.fold
-        self._partition = self.vaxifold.partition
 
         additional_opts = {
             "_length_cds": self.length_cds,
@@ -205,8 +205,8 @@ class SequenceEvaluator:
         try:
             async with self.vaxifold:
                 if self.use_fold:
-                    mfe_foldings = await self._fold([seq])
-                pf_foldings = await self._partition([seq])
+                    mfe_foldings = await self.vaxifold.fold([seq])
+                pf_foldings = await self.vaxifold.partition([seq])
         except Exception as exc:
             log.error(f"Error occurred in folding: {exc}")
 
@@ -214,9 +214,9 @@ class SequenceEvaluator:
         if self.use_fold:
             mfe_annotated = self.foldeval([seq], mfe_foldings)
         else:
-            mfe_annotated = dict()
+            mfe_annotated = [dict()]
 
-        self.folding_cache[seq] = mfe_annotated, pf_annotated
+        self.folding_cache[seq] = mfe_annotated[0], pf_annotated[0]
 
     def parse_seq(self, seq):
         if seq not in self.folding_cache:
@@ -225,16 +225,6 @@ class SequenceEvaluator:
 
     def prepare_evaluation_data(self, seq):
         mfe_parsed, pf_parsed = self.parse_seq(seq)
-        if isinstance(mfe_parsed, list):
-            mfe_parsed = mfe_parsed[0]
-        if isinstance(pf_parsed, list):
-            pf_parsed = pf_parsed[0]
-        assert isinstance(
-            mfe_parsed, dict
-        ), f"mfe result given with incompatible type: {type(mfe_parsed)}"
-        assert isinstance(
-            pf_parsed, dict
-        ), f"pf result given with incompatible type: {type(pf_parsed)}"
         seqevals = {}
         seqevals["local-metrics"] = localmet = {}
         for fun in self.annotationfuncs:
@@ -278,16 +268,9 @@ class FitnessEvaluationSession:
         self.folding_cache = evaluator.folding_cache
 
         self.vaxifold = evaluator.vaxifold
-        self.vaxifold_fold = evaluator._fold
-        self.vaxifold_partition = evaluator._partition
 
-        self.num_tasks = (
-            len(evaluator.scorefuncs_folding)
-            + len(evaluator.scorefuncs_nofolding)
-            + len(evaluator.scorefuncs_bpp)
-            + len(seqs)
-        )
-
+        self.pbar_nofold = None
+        self.pbar_fold = None
         self.quiet = evaluator.quiet
 
         self.scorefuncs_folding = evaluator.scorefuncs_folding
@@ -295,16 +278,38 @@ class FitnessEvaluationSession:
         self.scorefuncs_bpp = evaluator.scorefuncs_bpp
         self.annotationfuncs = evaluator.annotationfuncs
 
-        self.scorefuncs_vaxifold = self.scorefuncs_folding
+        self.scorefuncs_vaxifold = self.scorefuncs_folding[:]
 
         for item in self.scorefuncs_bpp:
             if item not in self.scorefuncs_vaxifold:
                 self.scorefuncs_vaxifold.append(item)
 
+        self.num_tasks_fold = len(self.scorefuncs_vaxifold)
+        self.num_tasks_nofold = len(self.scorefuncs_nofolding)
+
     def __enter__(self):
+        log.info("")
+        self.pbar_nofold = tqdm(
+            total=self.num_tasks_nofold,
+            desc="Fitness Eval (No Fold)",
+            file=sys.stderr,
+            unit="task",
+            disable=self.quiet,
+        )
+        self.pbar_fold = tqdm(
+            total=self.num_tasks_fold,
+            desc="Fitness Eval (Fold)",
+            file=sys.stderr,
+            unit="task",
+            disable=self.quiet,
+        )
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        if self.pbar_nofold:
+            self.pbar_nofold.close()
+        if self.pbar_fold:
+            self.pbar_fold.close()
         pass
 
     async def call_scorefunc(self, scorefunc, seqs, foldings=None):
@@ -341,17 +346,28 @@ class FitnessEvaluationSession:
         for scorefunc in self.scorefuncs_nofolding:
             task = self.call_scorefunc(scorefunc, self.seqs)
             tasks.append(task)
-
+            self.pbar_nofold.update(1)
         await asyncio.gather(*tasks)
 
     async def run_scoring_with_folding(self):
         loop = asyncio.get_running_loop()
 
+        mfe_results = [None for _ in range(len(self.seqs))]
+        pf_results = [None for _ in range(len(self.seqs))]
+
+        new_seqs = []
+
+        for i, seq in enumerate(self.seqs):
+            if seq in self.folding_cache:
+                mfe_results[i], pf_results[i] = self.folding_cache[seq]
+                continue
+            new_seqs.append(seq)
+
         try:
             async with self.vaxifold:
                 if self.scorefuncs_folding:
-                    mfe_foldings = await self.vaxifold_fold(self.seqs)
-                pf_foldings = await self.vaxifold_partition(self.seqs)
+                    mfe_foldings = await self.vaxifold.fold(new_seqs)
+                pf_foldings = await self.vaxifold.partition(new_seqs)
 
         except Exception as exc:
             return self.handle_exception(exc)
@@ -363,23 +379,42 @@ class FitnessEvaluationSession:
                 None, self.foldeval, self.seqs, mfe_foldings
             )
             try:
-                mfe_results = await mfe_future
-                pf_results = await pf_future
-                for mfe_result, pf_result in zip(mfe_results, pf_results):
-                    mfe_result.update(
+                new_mfe_results = await mfe_future
+                new_pf_results = await pf_future
+                for i, entry in enumerate(self, zip(mfe_results, pf_results)):
+                    mfe_entry, pf_entry = entry
+                    if (mfe_entry) and (pf_entry):
+                        continue
+                    mfe_results[i] = new_mfe_results.pop(0)
+                    pf_results[i] = new_pf_results.pop(0)
+                    if not isinstance(mfe_results[i], dict):
+                        mfe_results[i] = mfe_results[i][0]
+                    if not isinstance(pf_results[i], dict):
+                        pf_results[i] = pf_results[i][0]
+                    mfe_results[i].update(
                         {
-                            key: pf_result[key]
-                            for key in pf_result
-                            if key not in mfe_result
+                            key: pf_results[i][key]
+                            for key in pf_results[i]
+                            if key not in mfe_results[i]
                         }
                     )
+                    self.folding_cache[self.seqs[i]] = mfe_results[i], pf_results[i]
                 self.foldings = mfe_results
+
             except Exception as exc:
                 return self.handle_exception(exc)
 
         elif not self.scorefuncs_folding:
             try:
-                self.foldings = await pf_future
+                new_pf_results = await pf_future
+                for i, pf_entry in enumerate(pf_results):
+                    if pf_entry:
+                        continue
+                    pf_results[i] = new_pf_results.pop(0)
+                    if not isinstance(pf_results[i], dict):
+                        pf_results[i] = pf_results[i][0]
+                    self.folding_cache[self.seqs[i]] = dict(), pf_results[i]
+                self.foldings = pf_results
             except Exception as exc:
                 return self.handle_exception(exc)
 
@@ -388,12 +423,13 @@ class FitnessEvaluationSession:
         for scorefunc in self.scorefuncs_vaxifold:
             task = self.call_scorefunc(scorefunc, self.seqs, self.foldings)
             tasks.append(task)
+            self.pbar_fold.update(1)
 
         await asyncio.gather(*tasks)
 
     async def run_evaluations(self):
-        tasks_with_folding = self.run_scoring_with_folding()
         tasks_without_folding = self.run_scoring_without_folding()
+        tasks_with_folding = self.run_scoring_with_folding()
 
         await asyncio.gather(tasks_without_folding, tasks_with_folding)
 
