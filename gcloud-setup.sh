@@ -8,4 +8,4 @@ git clone https://github.com/Cauch-BS/VaxPress.git
 cd VaxPress 
 python3 -m venv .venv
 source .venv/bin/activate && pip3 install . 
-source .venv/bin/activate && pip3 install linearpartition-unofficial
+source .venv/bin/activate && pip3 install linearpartition-unofficial linearfold-unofficial
