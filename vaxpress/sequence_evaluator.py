@@ -406,9 +406,7 @@ class SequenceEvaluationSession:
                     self.pbar.update()
                 continue
 
-            future = self.executor.submit(
-                self.foldeval, seq, lineardesign_penalty, lineardesign_penalty_weight
-            )
+            future = self.executor.submit(self.bpp_eval, seq)
             future._seqidx = i  # type: ignore[attr-defined]
             future._type = "partition"  # type: ignore[attr-defined]
             jobs.add(future)
@@ -425,7 +423,9 @@ class SequenceEvaluationSession:
                     self.pbar.update()
                 continue
 
-            future = self.executor.submit(self.foldeval, seq)
+            future = self.executor.submit(
+                self.foldeval, seq, lineardesign_penalty, lineardesign_penalty_weight
+            )
             future._seqidx = i  # type: ignore[attr-defined]
             future._type = "folding"  # type: ignore[attr-defined]
             jobs.add(future)
