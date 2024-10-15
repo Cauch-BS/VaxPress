@@ -10,6 +10,8 @@ environments:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-2_gnu.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aio-pika-9.4.3-py312h7900ff3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/aiormq-6.8.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/_r-mutex-1.0.1-anacondar_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/_sysroot_linux-64_curr_repodata_hack-3-h69a702a_16.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/amply-0.1.6-pyhd8ed1ab_0.conda
@@ -127,12 +129,14 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/markdown-it-py-3.0.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/markupsafe-2.1.5-py312h66e93f0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mdurl-0.1.2-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/multidict-6.1.0-py312h66e93f0_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/nbformat-5.10.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-he02047a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/nodeenv-1.9.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numpy-2.1.1-py312h58c1407_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.3.2-hb9d3cd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-24.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pamqp-3.2.1-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pandas-2.2.3-py312hf9745cd_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pango-1.54.0-h4c5309f_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.44-hba22ea6_2.conda
@@ -171,6 +175,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/rpds-py-0.20.0-py312h12e396e_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/rpy2-3.5.11-py312r43hc7c0aa3_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.14.1-py312h7d485d2_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-75.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/sed-4.8-he412f7d_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-75.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/simplegeneric-0.8.1-py_1.tar.bz2
@@ -220,11 +225,13 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xorg-xproto-7.0.31-hb9d3cd8_1008.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xz-5.2.6-h166bdaf_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-h7f98852_2.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/yarl-1.12.1-py312h66e93f0_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/yte-1.5.4-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.20.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.1-h4ab18f5_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.23.0-py312hef9b889_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.6-ha6fb4c9_0.conda
+      - pypi: https://files.pythonhosted.org/packages/59/ee/9def4c281d6d331b12ff47965084e814337deaeab7aeddd5782e422b513d/linearpartition_unofficial-0.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/85/66/cad391d83b7266a667c85c826bb6c0d7f68519a0eed7634098c12fb39a4b/aio_pika-9.4.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2e/be/1a613ae1564426f86650ff58c351902895aa969f7e537e74bfd568f5c8bf/aiormq-6.8.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/fd/e4bda6228637ecae5732162b5ac2a5a822e2ba8e546eb4997cde51b231a3/build-1.2.2-py3-none-any.whl
@@ -268,6 +275,45 @@ packages:
   purls: []
   size: 23621
   timestamp: 1650670423406
+- kind: conda
+  name: aio-pika
+  version: 9.4.3
+  build: py312h7900ff3_0
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/aio-pika-9.4.3-py312h7900ff3_0.conda
+  sha256: 37ab2d19f5bb243c8b02b8a974198f84dffe51fcb68e0356683e3a6050c12f21
+  md5: bc8778d9cf24a41a3a77febf9baddbcd
+  depends:
+  - aiormq >=6.7.5,<7
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  - yarl
+  license: Apache-2.0
+  license_family: Apache
+  purls:
+  - pkg:pypi/aio-pika?source=hash-mapping
+  size: 121281
+  timestamp: 1726194796443
+- kind: conda
+  name: aiormq
+  version: 6.8.1
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/aiormq-6.8.1-pyhd8ed1ab_0.conda
+  sha256: 30d90b84589001111e57415c6ffe2b6ef7b2b415a05c555cc60b340272ca6df9
+  md5: 8771cb94619e421ece36d74809db4097
+  depends:
+  - pamqp 3.2.1
+  - python >=3.8
+  - setuptools
+  - yarl
+  license: Apache-2.0
+  license_family: Apache
+  purls:
+  - pkg:pypi/aiormq?source=hash-mapping
+  size: 35510
+  timestamp: 1726194723073
 - kind: conda
   name: _r-mutex
   version: 1.0.1
@@ -2373,6 +2419,13 @@ packages:
   size: 61574
   timestamp: 1716874187109
 - kind: pypi
+  name: linearpartition-unofficial
+  version: '0.3'
+  url: https://files.pythonhosted.org/packages/59/ee/9def4c281d6d331b12ff47965084e814337deaeab7aeddd5782e422b513d/linearpartition_unofficial-0.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+  sha256: 9f1fb9f839a05200c6c6547df454ae1a6fe5a5b8051d74b793bce4f9a78305ca
+  requires_dist:
+  - numpy
+- kind: pypi
   name: linearfold-unofficial
   version: '0.1'
   url: https://files.pythonhosted.org/packages/39/5f/ae76df3876e3ff25bda8266c13d8c71c7406d13146e016467bb58d117f23/linearfold_unofficial-0.1-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
@@ -2475,6 +2528,25 @@ packages:
   - pkg:pypi/mdurl?source=hash-mapping
   size: 14680
   timestamp: 1704317789138
+- kind: conda
+  name: multidict
+  version: 6.1.0
+  build: py312h66e93f0_0
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/multidict-6.1.0-py312h66e93f0_0.conda
+  sha256: 8094e10ec5ae6765d9d8cc5669801f0c6bb41205ed50e273bc9c9bf1c626dc5f
+  md5: fb1f7c50f0b3ce28d7aac73059efd2e5
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=13
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  license: Apache-2.0
+  license_family: APACHE
+  purls:
+  - pkg:pypi/multidict?source=hash-mapping
+  size: 61323
+  timestamp: 1725953748261
 - kind: pypi
   name: multidict
   version: 6.1.0
@@ -3461,6 +3533,23 @@ packages:
   size: 6864
   timestamp: 1530899629183
 - kind: conda
+  name: setuptools
+  version: 75.1.0
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/setuptools-75.1.0-pyhd8ed1ab_0.conda
+  sha256: 6725235722095c547edd24275053c615158d6163f396550840aebd6e209e4738
+  md5: d5cd48392c67fb6849ba459c2c2b671f
+  depends:
+  - python >=3.8
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/setuptools?source=hash-mapping
+  size: 777462
+  timestamp: 1727249510532
+- kind: conda
   name: six
   version: 1.16.0
   build: pyh6c4a22f_0
@@ -4296,15 +4385,27 @@ packages:
   purls: []
   size: 89141
   timestamp: 1641346969816
-- kind: pypi
+- kind: conda
   name: yarl
-  version: 1.13.1
-  url: https://files.pythonhosted.org/packages/47/a0/c1404aa8c7e025aa05a81f3a34c42131f8b11836e49450e1558bcd64a3bb/yarl-1.13.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  sha256: 3fdbf0418489525231723cdb6c79e7738b3cbacbaed2b750cb033e4ea208f220
-  requires_dist:
-  - idna>=2.0
-  - multidict>=4.0
-  requires_python: '>=3.8'
+  version: 1.12.1
+  build: py312h66e93f0_0
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/yarl-1.12.1-py312h66e93f0_0.conda
+  sha256: dad609e3340c99c10b71acf3bfc4f231219268844c31f23204d2d45ff9bb8eb1
+  md5: 77c0ea0577cf4da7a6f5750a48c6fd03
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - idna >=2.0
+  - libgcc >=13
+  - multidict >=4.0
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  license: Apache-2.0
+  license_family: Apache
+  purls:
+  - pkg:pypi/yarl?source=hash-mapping
+  size: 152963
+  timestamp: 1727203663638
 - kind: conda
   name: yte
   version: 1.5.4

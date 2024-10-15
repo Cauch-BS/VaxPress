@@ -79,6 +79,12 @@ ExecutionOptions = namedtuple(
         "lineardesign_penalty",
         "lineardesign_penalty_weight",
         "folding_engine",
+        "partition_engine",
+        "host",
+        "port",
+        "user",
+        "passwd",
+        "queue",
     ],
 )
 
@@ -116,6 +122,11 @@ class CDSEvolutionChamber:
         self.n_processes = exec_options.processes
         self.quiet = exec_options.quiet
         self.print_top_mutants = exec_options.print_top_mutants
+        self.host = exec_options.host
+        self.port = exec_options.port
+        self.user = exec_options.user
+        self.passwd = exec_options.passwd
+        self.queue = exec_options.queue
 
         self.initialize()
 
@@ -203,7 +214,6 @@ class CDSEvolutionChamber:
             ]
         else:
             self.alternative_mutation_fields = []
-
         self.seqeval = SequenceEvaluator(
             self.scoringfuncs,
             self.scoreopts,
@@ -212,9 +222,13 @@ class CDSEvolutionChamber:
             self.species,
             self.length_cds,
             self.quiet,
+            self.host,
+            self.port,
+            self.user,
+            self.passwd,
+            self.queue,
         )
         self.penalty_metric_flags = self.seqeval.penalty_metric_flags  # XXX
-
         self.initial_sequence_evaluation = self.seqeval.prepare_evaluation_data(
             "".join(self.population[0])
         )
@@ -312,10 +326,15 @@ class CDSEvolutionChamber:
         nextgeneration = self.population[:]
         nextgen_sources = list(range(len(nextgeneration)))
 
+        parents = self.population[:10] if len(self.population) > 10 else self.population
+        parents_foldings = (
+            self.population_foldings[:10]
+            if len(self.population) > 10
+            else self.population_foldings
+        )
+
         traverse = self.mutantgen.traverse_all_single_mutations
-        for i, (seedseq, seedfold) in enumerate(
-            zip(self.population, self.population_foldings)
-        ):
+        for i, (seedseq, seedfold) in enumerate(zip(parents, parents_foldings)):
             for child in traverse(seedseq, seedfold):
                 nextgeneration.append(child)
                 nextgen_sources.append(i)
@@ -337,13 +356,11 @@ class CDSEvolutionChamber:
             if self.execopts.n_iterations == 0:
                 # Only the initial sequences are evaluated
                 self.flatten_seqs = ["".join(seq) for seq in self.population]
-                total_scores, scores, metrics, foldings, pairingprobs = (
-                    self.seqeval.evaluate(
-                        self.flatten_seqs,
-                        executor,
-                        self.execopts.lineardesign_penalty,
-                        self.execopts.lineardesign_penalty_weight,
-                    )
+                total_scores, scores, metrics, foldings = self.seqeval.find_fitness(
+                    self.flatten_seqs,
+                    executor,
+                    self.execopts.lineardesign_penalty,
+                    self.execopts.lineardesign_penalty_weight,
                 )
                 if total_scores is None:
                     error_code = 1
@@ -362,13 +379,11 @@ class CDSEvolutionChamber:
                 except StopIteration:
                     break
 
-                total_scores, scores, metrics, foldings, pairingprobs = (
-                    self.seqeval.evaluate(
-                        self.flatten_seqs,
-                        executor,
-                        self.execopts.lineardesign_penalty,
-                        self.execopts.lineardesign_penalty_weight,
-                    )
+                total_scores, scores, metrics, foldings = self.seqeval.find_fitness(
+                    self.flatten_seqs,
+                    executor,
+                    self.execopts.lineardesign_penalty,
+                    self.execopts.lineardesign_penalty_weight,
                 )
                 if total_scores is None:
                     # Termination due to errors from one or more scoring functions
@@ -380,13 +395,11 @@ class CDSEvolutionChamber:
                     ind_sorted = self.prioritized_sort_by_parents(total_scores)
                 else:
                     ind_sorted = np.argsort(total_scores)[::-1]
-                survivor_indices = ind_sorted[:n_survivors]
+                idx_sorted = [int(i) for i in ind_sorted]
+                survivor_indices = idx_sorted[:n_survivors]
                 survivors = [self.population[i] for i in survivor_indices]
                 survivor_foldings = [foldings[i] for i in survivor_indices]
-                survivor_bpps = [  # noqa: F841
-                    pairingprobs[i] for i in survivor_indices
-                ]
-                self.best_scores.append(total_scores[ind_sorted[0]])
+                self.best_scores.append(total_scores[idx_sorted[0]])
 
                 # Write the evaluation result of the initial sequence in
                 # the first iteration
@@ -395,7 +408,7 @@ class CDSEvolutionChamber:
                         0, [0], total_scores, scores, metrics, foldings
                     )
 
-                self.print_eval_results(total_scores, metrics, ind_sorted, n_parents)
+                self.print_eval_results(total_scores, metrics, idx_sorted, n_parents)
                 self.write_checkpoint(
                     iter_no, survivor_indices, total_scores, scores, metrics, foldings
                 )
@@ -407,6 +420,7 @@ class CDSEvolutionChamber:
                     " # Last best scores: "
                     + " ".join(f"{s:.3f}" for s in self.best_scores[-5:])
                 )
+
                 if (
                     len(self.best_scores) >= self.execopts.winddown_trigger
                     and iter_no - last_winddown > self.execopts.winddown_trigger

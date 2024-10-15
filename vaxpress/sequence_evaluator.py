@@ -27,15 +27,18 @@ import re
 import sys
 from collections import Counter
 from concurrent import futures
+import os
+import asyncio
 
 import pylru  # type: ignore[import-untyped]
-from scipy import sparse  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore[import-untyped]
 
+from .vaxifold import AsyncVaxiFoldClient, LocalVaxiFold
 from .log import hbar_stars, log
 
 
-class Evaluator:
+class ParseStructure:
+
     def __init__(self):
         self.pat_find_loops = re.compile(r"\.{2,}")
 
@@ -78,60 +81,16 @@ class Evaluator:
 
         return "".join(folding), newstems
 
-
-class FoldEvaluator(Evaluator):
-
-    def __init__(self, engine: str):
-        super().__init__()
-        self.engine = engine
-        self.initialize()
-
-    def initialize(self):
-        if self.engine == "vienna":
-            try:
-                import RNA  # type: ignore[import]
-            except ImportError:
-                raise ImportError(
-                    'ViennaRNA module is not available. Try "'
-                    'pip install ViennaRNA" to install.'
-                )
-            self._fold = RNA.fold
-        elif self.engine == "linearfold":
-            try:
-                import linearfold  # type: ignore[import]
-            except ImportError:
-                raise ImportError(
-                    'LinearFold module is not available. Try "'
-                    'pip install linearfold-unofficial" to install.'
-                )
-            self._fold = linearfold.fold
-        else:
-            raise ValueError(f"Unsupported RNA folding engine: {self.engine}")
-
-    def __call__(self, seq, lineardesign_penalty=None, lineardesign_penalty_weight=1.0):
-        folding, mfe = self._fold(seq)
-        stems = Evaluator.find_stems(folding)
-        folding, stems = Evaluator.unfold_unstable_structure(folding, stems)
-        loops = dict(Counter(map(len, self.pat_find_loops.findall(folding))))
-
-        penalty_score = 0
-        if lineardesign_penalty:
-            penalty_score = self.calculate_penalty(
-                stems, lineardesign_penalty, lineardesign_penalty_weight
+    @staticmethod
+    def calculate_penalty(stems, lineardesign_penalty, lineardesign_penalty_weight):
+        if not isinstance(lineardesign_penalty, str):
+            log.info(
+                "Invalid lineardesign_penalty format. "
+                "Please provide the penalty in the format 'start~end'.\n"
+                f"Instead given as : {lineardesign_penalty}"
             )
-        return {
-            "folding": folding,
-            "mfe": mfe,
-            "stems": stems,
-            "loops": loops,
-            "penalty": penalty_score,
-        }
-
-    def calculate_penalty(
-        self, stems, lineardesign_penalty, lineardesign_penalty_weight=1.0
-    ):
-        start = int(lineardesign_penalty.split("~")[0])
-        end = int(lineardesign_penalty.split("~")[1])
+            return 0
+        start, end = map(int, lineardesign_penalty.split("~"))
         penalty = 0
         for stem in stems:
             stem_pairs = zip(stem[0], stem[1])
@@ -144,57 +103,52 @@ class FoldEvaluator(Evaluator):
                     penalty -= 1
         return penalty * lineardesign_penalty_weight
 
+    def __call__(
+        self, seqs, foldings, lineardesign_penalty=None, lineardesign_penalty_weight=1.0
+    ):
+        for _, folding in zip(seqs, foldings):
+            # NOTE: free_energy is actually the EFE, but we use it as MFE for now.
+            folding["mfe"] = folding["free_energy"]
+            mfe_str = folding["structure"]
+            stems = self.find_stems(mfe_str)
+            mfe_str, stems = self.unfold_unstable_structure(mfe_str, stems)
+            loops = dict(Counter(map(len, self.pat_find_loops.findall(mfe_str))))
 
-class PairingProbEvaluator(Evaluator):
-    def __init__(self):
-        super().__init__()
-        self.initialize()
+            folding["folding"] = mfe_str
+            folding["stems"] = stems
+            folding["loops"] = loops
 
-    def initialize(self):
-        try:
-            import linearpartition  # type: ignore[import]
-        except ImportError:
-            raise ImportError(
-                'LinearPartition module is not available. Try "'
-                'pip install linearpartition-unofficial" to install.'
-            )
-        self._pairing_prob = linearpartition.partition
+            folding.pop("free_energy")
+            folding.pop("structure")
 
-    def __call__(self, seq):
-        pred = self._pairing_prob(seq)
-        bpmtx = pred["bpp"]
-        fe = pred["free_energy"]
-        mea = pred["structure"]
-        pi_coarray = self.get_pairingprobs(bpmtx, seq)
-        stems = Evaluator.find_stems(mea)
-        mea, stems = Evaluator.unfold_unstable_structure(mea, stems)
-        loops = dict(Counter(map(len, self.pat_find_loops.findall(mea))))
+            penalty_score = 0
+            if lineardesign_penalty:
+                penalty_score = self.calculate_penalty(
+                    stems, lineardesign_penalty, lineardesign_penalty_weight
+                )
+            folding["penalty"] = penalty_score
 
-        return {
-            "pi_array": pi_coarray,
-            "efe": fe,  # efe = ensemble free energy
-            "folding": mea,  # mea = maximum expected accuracy
-            "stems": stems,
-            "loops": loops,
-        }
-
-    @staticmethod
-    def get_pairingprobs(bpmtx, seq):
-        # returns scipy sparse matrix (coo_array)
-        I = bpmtx["i"]  # noqa : E741
-        J = bpmtx["j"]
-        prob = bpmtx["prob"]
-        A = sparse.coo_array((prob, (I, J)), shape=(len(seq), len(seq)))
-        return A + A.T
+        return foldings
 
 
 class SequenceEvaluator:
 
-    folding_cache_size = 8192
-    bpp_cache_size = 8192
+    folding_cache_size = 16384
 
     def __init__(
-        self, scoring_funcs, scoreopts, execopts, mutantgen, species, length_cds, quiet
+        self,
+        scoring_funcs,
+        scoreopts,
+        execopts,
+        mutantgen,
+        species,
+        length_cds,
+        quiet,
+        host=None,
+        port=None,
+        user=None,
+        passwd=None,
+        queue=None,
     ):
         self.scoring_funcs = scoring_funcs
         self.scoreopts = scoreopts
@@ -205,34 +159,40 @@ class SequenceEvaluator:
         self.species = species
 
         self.quiet = quiet
-
-        self.initialize()
-
-    def initialize(self):
-        self.foldeval = FoldEvaluator(self.execopts.folding_engine)
-        self.bpp_eval = PairingProbEvaluator()
+        self.use_fold = True
+        self.foldeval = ParseStructure()
         self.folding_cache = pylru.lrucache(self.folding_cache_size)
-        self.bpp_cache = pylru.lrucache(self.bpp_cache_size)
 
         self.scorefuncs_nofolding = []
         self.scorefuncs_folding = []
         self.scorefuncs_bpp = []
         self.annotationfuncs = []
         self.penalty_metric_flags = {}
+        self.host = host
+        self.port = port
+        self.user = user
+        self.passwd = passwd
+        self.queue = queue
 
+        self.initialize()
+
+        try:
+            self.initialize_remote()
+        except Exception as exc:
+            log.info(f"Error occurred in initializing remote: {exc}")
+            log.info("Falling back to local evaluation.")
+            self.initialize_local()
+
+    def initialize(self):
         additional_opts = {
             "_length_cds": self.length_cds,
         }
 
-        use_fold, use_mea = True, True
         for funcname, cls in self.scoring_funcs.items():
             opts = self.scoreopts[funcname]
             if "mfe" in funcname:
                 if "weight" in opts and opts["weight"] == 0:
-                    use_fold = False
-            if "aup" in funcname:
-                if "weight" in opts and opts["weight"] == 0:
-                    use_mea = False
+                    self.use_fold = False
 
         for funcname, cls in self.scoring_funcs.items():
             funcoff = False
@@ -257,88 +217,136 @@ class SequenceEvaluator:
             if funcoff:
                 continue
 
-            if cls.uses_folding and use_fold:
+            if cls.uses_folding and self.use_fold:
                 self.scorefuncs_folding.append(scorefunc_inst)
-            elif (
-                cls.uses_basepairing_prob
-                and use_mea
-                and (not cls.uses_folding or not use_fold)
-            ):
+            elif cls.uses_basepairing_prob or (cls.uses_folding and not self.use_fold):
                 self.scorefuncs_bpp.append(scorefunc_inst)
             else:
                 self.scorefuncs_nofolding.append(scorefunc_inst)
 
             self.penalty_metric_flags.update(cls.penalty_metric_flags)
-        # log.info('>>>>Scoring functions used:')
-        # log.info('\t Uses Folding: {}'.format(self.scorefuncs_folding))
-        # log.info('\t Uses Base Pairing Probability: {}'.format(self.scorefuncs_bpp))
-        # log.info('\t Does not use Folding: {}'.format(self.scorefuncs_nofolding))
 
-    def evaluate(
-        self, seqs, executor, lineardesign_penalty, lineardesign_penalty_weight
+    def initialize_remote(self):
+
+        host = self.host
+        port = self.port
+        user = self.user
+        passwd = self.passwd
+        queue = self.queue
+
+        if not host:
+            if "RABBITMQ_HOST" in os.environ:
+                host = os.environ["RABBITMQ_HOST"]
+            else:
+                raise ConnectionError("RabbitMQ host not specified.")
+        if not port:
+            if "RABBITMQ_PORT" in os.environ:
+                port = os.environ["RABBITMQ_PORT"]
+            else:
+                raise ConnectionError("RabbitMQ port not specified.")
+        if queue is None:
+            if "VAXIFOLD_QUEUE" in os.environ:
+                queue = os.environ["VAXIFOLD_QUEUE"]
+            else:
+                raise ConnectionError("VaxiFold queue not specified.")
+
+        self.vaxifold = AsyncVaxiFoldClient(
+            host=host,
+            port=port,
+            user=user,
+            passwd=passwd,
+            queue=queue,
+            folding_engine=self.execopts.folding_engine,
+            partition_engine=self.execopts.partition_engine,
+        )
+
+    def initialize_local(self):
+        self.vaxifold = LocalVaxiFold(
+            folding_engine=self.execopts.folding_engine,
+            partition_engine=self.execopts.partition_engine,
+        )
+
+    def find_fitness(
+        self, seqs, executor, lineardesign_penalty=None, lineardesign_penalty_weight=1.0
     ):
-        with SequenceEvaluationSession(self, seqs, executor) as sess:
-            sess.evaluate(lineardesign_penalty, lineardesign_penalty_weight)
-
-            if not sess.errors:
+        with FitnessEvaluationSession(self, seqs, executor) as f_sess:
+            f_sess.evaluate(lineardesign_penalty, lineardesign_penalty_weight)
+            if not f_sess.errors:
                 total_scores = []
-                for i, score_dict in enumerate(sess.scores):
-                    penalty = sess.foldings[i]["penalty"]
+                for i, score_dict in enumerate(f_sess.scores):
+                    penalty = f_sess.foldings[i]["penalty"]
                     fitness_score = sum(score_dict.values()) - penalty
                     total_scores.append(fitness_score)
-                # total_scores = [sum(s.values()) for s in sess.scores]
                 return (
                     total_scores,
-                    sess.scores,
-                    sess.metrics,
-                    sess.foldings,
-                    sess.pairingprobs,
+                    f_sess.scores,
+                    f_sess.metrics,
+                    f_sess.foldings,
                 )
             else:
-                return None, None, None, None, None
+                return None, None, None, None
 
-    def get_folding(self, seq):
-        if seq not in self.folding_cache:
-            self.folding_cache[seq] = self.foldeval(
-                seq,
+    async def parse_individual_seq(self, seq):
+        try:
+            async with self.vaxifold:
+                if self.use_fold:
+                    mfe_foldings = await self.vaxifold.fold([seq])
+                pf_foldings = await self.vaxifold.partition([seq])
+        except Exception as exc:
+            log.error(f"Error occurred in folding: {exc}")
+
+        pf_annotated = self.foldeval(
+            [seq],
+            pf_foldings,
+            self.execopts.lineardesign_penalty,
+            self.execopts.lineardesign_penalty_weight,
+        )
+        if self.use_fold:
+            mfe_annotated = self.foldeval(
+                [seq],
+                mfe_foldings,
                 self.execopts.lineardesign_penalty,
                 self.execopts.lineardesign_penalty_weight,
             )
+        else:
+            mfe_annotated = [dict()]
 
+        self.folding_cache[seq] = mfe_annotated[0], pf_annotated[0]
+
+    def parse_seq(self, seq):
+        if seq not in self.folding_cache:
+            asyncio.run(self.parse_individual_seq(seq))
         return self.folding_cache[seq]
 
-    def get_pairing_prob(self, seq):
-        if seq not in self.bpp_cache:
-            self.bpp_cache[seq] = self.bpp_eval(seq)
-        return self.bpp_cache[seq]
-
     def prepare_evaluation_data(self, seq):
-        folding = self.get_folding(seq)
-        pairingprob = self.get_pairing_prob(seq)
-
+        mfe_parsed, pf_parsed = self.parse_seq(seq)
         seqevals = {}
         seqevals["local-metrics"] = localmet = {}
         for fun in self.annotationfuncs:
             if hasattr(fun, "evaluate_local"):
-                if fun.uses_folding:
-                    localmet.update(fun.evaluate_local(seq, folding))
-                elif fun.uses_basepairing_prob:
-                    localmet.update(fun.evaluate_local(seq, pairingprob))
+                if fun.uses_folding and self.use_fold:
+                    localmet.update(fun.evaluate_local(seq, mfe_parsed))
+                elif fun.uses_basepairing_prob or (
+                    fun.uses_folding and not self.use_fold
+                ):
+                    localmet.update(fun.evaluate_local(seq, pf_parsed))
                 else:
                     localmet.update(fun.evaluate_local(seq))
 
             if hasattr(fun, "annotate_sequence"):
-                if fun.uses_folding:
-                    seqevals.update(fun.annotate_sequence(seq, folding))
-                elif fun.uses_basepairing_prob:
-                    seqevals.update(fun.annotate_sequence(seq, pairingprob))
+                if fun.uses_folding and self.use_fold:
+                    seqevals.update(fun.annotate_sequence(seq, mfe_parsed))
+                elif fun.uses_basepairing_prob or (
+                    fun.uses_folding and not self.use_fold
+                ):
+                    seqevals.update(fun.annotate_sequence(seq, pf_parsed))
                 else:
                     seqevals.update(fun.annotate_sequence(seq))
 
         return seqevals
 
 
-class SequenceEvaluationSession:
+class FitnessEvaluationSession:
 
     def __init__(
         self, evaluator: SequenceEvaluator, seqs: list[str], executor: futures.Executor
@@ -349,25 +357,15 @@ class SequenceEvaluationSession:
         self.scores: list[dict] = [{} for _ in range(len(seqs))]
         self.metrics: list[dict] = [{} for _ in range(len(seqs))]
         self.foldings = [None] * len(seqs)
-        self.pairingprobs = [None] * len(seqs)
-        self.errors: list[str] = []
+        self.errors: list = []
 
-        self.folding_cache = evaluator.folding_cache
-        self.foldings_remaining = len(seqs)
         self.foldeval = evaluator.foldeval
+        self.folding_cache = evaluator.folding_cache
 
-        self.bpp_cache = evaluator.bpp_cache
-        self.bpps_remaining = len(seqs)
-        self.bpp_eval = evaluator.bpp_eval
+        self.vaxifold = evaluator.vaxifold
 
-        self.num_tasks = (
-            len(evaluator.scorefuncs_folding)
-            + len(evaluator.scorefuncs_nofolding)
-            + len(evaluator.scorefuncs_bpp)
-            + len(seqs)
-        )
-
-        self.pbar = None
+        self.pbar_nofold = None
+        self.pbar_fold = None
         self.quiet = evaluator.quiet
 
         self.scorefuncs_folding = evaluator.scorefuncs_folding
@@ -375,132 +373,56 @@ class SequenceEvaluationSession:
         self.scorefuncs_bpp = evaluator.scorefuncs_bpp
         self.annotationfuncs = evaluator.annotationfuncs
 
+        self.scorefuncs_vaxifold = self.scorefuncs_folding[:]
+
+        for item in self.scorefuncs_bpp:
+            if item not in self.scorefuncs_vaxifold:
+                self.scorefuncs_vaxifold.append(item)
+
+        self.num_tasks_fold = len(self.scorefuncs_vaxifold)
+        self.num_tasks_nofold = len(self.scorefuncs_nofolding)
+
     def __enter__(self):
         log.info("")
-        self.pbar = tqdm(
-            total=self.num_tasks,
-            disable=self.quiet,
+        self.pbar_nofold = tqdm(
+            total=self.num_tasks_nofold,
+            desc="Fitness Eval (No Fold)",
             file=sys.stderr,
             unit="task",
-            desc="Scoring fitness",
+            disable=self.quiet,
+        )
+        self.pbar_fold = tqdm(
+            total=self.num_tasks_fold,
+            desc="Fitness Eval (Fold)",
+            file=sys.stderr,
+            unit="task",
+            disable=self.quiet,
         )
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.pbar is not None:
-            self.pbar.close()
-        log.info("")
+        if self.pbar_nofold:
+            self.pbar_nofold.close()
+        if self.pbar_fold:
+            self.pbar_fold.close()
+        pass
 
-    def evaluate(self, lineardesign_penalty, lineardesign_penalty_weight) -> None:
-        jobs = set()
+    async def call_scorefunc(self, executor, scorefunc, seqs, foldings=None):
+        loop = asyncio.get_running_loop()
 
-        # First, base pairing probability is calculated.
-        for i, seq in enumerate(self.seqs):
-            if self.errors:
-                continue
+        if foldings is None:
+            future = loop.run_in_executor(executor, scorefunc, seqs)
+        else:
+            future = loop.run_in_executor(executor, scorefunc, seqs, foldings)
 
-            if seq in self.bpp_cache:
-                self.pairingprobs[i] = self.bpp_cache[seq]
-                self.bpps_remaining -= 1
-                if self.pbar is not None:
-                    self.pbar.update()
-                continue
-
-            future = self.executor.submit(self.bpp_eval, seq)
-            future._seqidx = i  # type: ignore[attr-defined]
-            future._type = "partition"  # type: ignore[attr-defined]
-            jobs.add(future)
-
-        # Secondary structure prediction is the second set of tasks.
-        for i, seq in enumerate(self.seqs):
-            if self.errors:  # skip remaining tasks on error
-                continue
-
-            if seq in self.folding_cache:
-                self.foldings[i] = self.folding_cache[seq]
-                self.foldings_remaining -= 1
-                if self.pbar is not None:
-                    self.pbar.update()
-                continue
-
-            future = self.executor.submit(
-                self.foldeval, seq, lineardesign_penalty, lineardesign_penalty_weight
-            )
-            future._seqidx = i  # type: ignore[attr-defined]
-            future._type = "folding"  # type: ignore[attr-defined]
-            jobs.add(future)
-
-        # Then, scoring functions that does not require folding are executed.
-        for scorefunc in self.scorefuncs_nofolding:  # no folding, no bpp
-            if self.errors:
-                continue
-
-            future = self.executor.submit(scorefunc, self.seqs)
-            future._type = "scoring"  # type: ignore[attr-defined]
-            jobs.add(future)
-
-        # Wait until all folding tasks are finished.
-        while (
-            jobs
-            and not self.errors
-            and (self.foldings_remaining > 0 or self.bpps_remaining > 0)
-        ):
-            done, jobs = futures.wait(
-                jobs, timeout=0.1, return_when=futures.FIRST_COMPLETED
-            )
-            for future in done:
-                if future._type == "folding":  # type: ignore[attr-defined]
-                    self.collect_folding(future)
-                elif future._type == "partition":  # type: ignore[attr-defined]
-                    self.collect_pairingprob(future)
-                elif future._type == "scoring":  # type: ignore[attr-defined]
-                    self.collect_scores(future)
-
-        # Scoring functions requiring base pairing probability are executed.
-        for scorefunc in self.scorefuncs_bpp:
-            if self.errors:
-                continue
-
-            future = self.executor.submit(
-                scorefunc, self.seqs, pairingprobs=self.pairingprobs
-            )
-            future._type = "scoring"  # type: ignore[attr-defined]
-            jobs.add(future)
-
-        # Scoring functions requiring mfe are executed.
-        for scorefunc in self.scorefuncs_folding:
-            if self.errors:
-                continue
-
-            future = self.executor.submit(scorefunc, self.seqs, foldings=self.foldings)
-            future._type = "scoring"  # type: ignore[attr-defined]
-            jobs.add(future)
-
-        while jobs and not self.errors:
-            done, jobs = futures.wait(jobs, timeout=0.1)
-            for future in done:
-                if future._type == "folding":  # type: ignore[attr-defined]
-                    self.collect_folding(future)
-                elif future._type == "partition":  # type: ignore[attr-defined]
-                    self.collect_pairingprob(future)
-                elif future._type == "scoring":  # type: ignore[attr-defined]
-                    self.collect_scores(future)
-
-    def collect_scores(self, future):
         try:
-            ret = future.result()
+            ret = await future
             if ret is None:
                 self.errors.append("KeyboardInterrupt")
-                if self.pbar is not None:
-                    self.pbar.close()
-                self.pbar = None
                 return
             scoreupdates, metricupdates = ret
         except Exception as exc:
             return self.handle_exception(exc)
-
-        if self.pbar is not None:
-            self.pbar.update()
 
         # Update scores
         for k, updates in scoreupdates.items():
@@ -514,43 +436,137 @@ class SequenceEvaluationSession:
             for s, u in zip(self.metrics, updates):
                 s[k] = u
 
-    def collect_pairingprob(self, future):
+    async def run_scoring_without_folding(self, executor):
+        tasks = []
+        for scorefunc in self.scorefuncs_nofolding:
+            task = self.call_scorefunc(executor, scorefunc, self.seqs)
+            tasks.append(task)
+            self.pbar_nofold.update(1)
+        await asyncio.gather(*tasks)
+
+    async def run_scoring_with_folding(
+        self,
+        executor,
+        lineardesign_penalty,
+        lineardesign_penalty_weight,
+    ):
+        loop = asyncio.get_running_loop()
+
+        mfe_results = [None for _ in range(len(self.seqs))]
+        pf_results = [None for _ in range(len(self.seqs))]
+
+        new_seqs = []
+
+        for i, seq in enumerate(self.seqs):
+            if seq in self.folding_cache:
+                mfe_results[i], pf_results[i] = self.folding_cache[seq]
+                continue
+            new_seqs.append(seq)
+
         try:
-            pairingprob = future.result()
-            if pairingprob is None:
-                self.errors.append("KeyboardInterrupt")
-                if self.pbar is not None:
-                    self.pbar.close()
-                self.pbar = None
-                return
+            async with self.vaxifold:
+                if self.scorefuncs_folding:
+                    mfe_foldings = await self.vaxifold.fold(new_seqs, self.executor)
+                pf_foldings = await self.vaxifold.partition(new_seqs, self.executor)
+
         except Exception as exc:
             return self.handle_exception(exc)
-        i = future._seqidx
-        self.pairingprobs[i] = pairingprob
-        self.bpp_cache[self.seqs[i]] = pairingprob
-        self.bpps_remaining -= 1
 
-        if self.pbar is not None:
-            self.pbar.update()
+        pf_future = loop.run_in_executor(
+            executor,
+            self.foldeval,
+            self.seqs,
+            pf_foldings,
+            lineardesign_penalty,
+            lineardesign_penalty_weight,
+        )
 
-    def collect_folding(self, future):
-        try:
-            folding = future.result()
-            if folding is None:
-                self.errors.append("KeyboardInterrupt")
-                if self.pbar is not None:
-                    self.pbar.close()
-                self.pbar = None
-                return
-        except Exception as exc:
-            return self.handle_exception(exc)
-        i = future._seqidx
-        self.foldings[i] = folding
-        self.folding_cache[self.seqs[i]] = folding
-        self.foldings_remaining -= 1
+        if self.scorefuncs_folding:
+            mfe_future = loop.run_in_executor(
+                executor,
+                self.foldeval,
+                self.seqs,
+                mfe_foldings,
+                lineardesign_penalty,
+                lineardesign_penalty_weight,
+            )
+            try:
+                new_mfe_results = await mfe_future
+                new_pf_results = await pf_future
+                for i, entry in enumerate(self, zip(mfe_results, pf_results)):
+                    mfe_entry, pf_entry = entry
+                    if (mfe_entry) and (pf_entry):
+                        continue
+                    mfe_results[i] = new_mfe_results.pop(0)
+                    pf_results[i] = new_pf_results.pop(0)
+                    if not isinstance(mfe_results[i], dict):
+                        mfe_results[i] = mfe_results[i][0]
+                    if not isinstance(pf_results[i], dict):
+                        pf_results[i] = pf_results[i][0]
+                    mfe_results[i].update(
+                        {
+                            key: pf_results[i][key]
+                            for key in pf_results[i]
+                            if key not in mfe_results[i]
+                        }
+                    )
+                    self.folding_cache[self.seqs[i]] = mfe_results[i], pf_results[i]
+                self.foldings = mfe_results
 
-        if self.pbar is not None:
-            self.pbar.update()
+            except Exception as exc:
+                return self.handle_exception(exc)
+
+        elif not self.scorefuncs_folding:
+            try:
+                new_pf_results = await pf_future
+                for i, pf_entry in enumerate(pf_results):
+                    if pf_entry:
+                        continue
+                    pf_results[i] = new_pf_results.pop(0)
+                    if not isinstance(pf_results[i], dict):
+                        pf_results[i] = pf_results[i][0]
+                    self.folding_cache[self.seqs[i]] = dict(), pf_results[i]
+                self.foldings = pf_results
+            except Exception as exc:
+                return self.handle_exception(exc)
+
+        tasks = []
+
+        for scorefunc in self.scorefuncs_vaxifold:
+            task = self.call_scorefunc(executor, scorefunc, self.seqs, self.foldings)
+            tasks.append(task)
+            self.pbar_fold.update(1)
+
+        await asyncio.gather(*tasks)
+
+    async def run_evaluations(
+        self,
+        executor,
+        lineardesign_penalty,
+        lineardesign_penalty_weight,
+    ):
+        tasks_without_folding = self.run_scoring_without_folding(executor)
+        tasks_with_folding = self.run_scoring_with_folding(
+            executor,
+            lineardesign_penalty,
+            lineardesign_penalty_weight,
+        )
+
+        await asyncio.gather(tasks_without_folding, tasks_with_folding)
+
+    def evaluate(
+        self,
+        lineardesign_penalty=None,
+        lineardesign_penalty_weight=1.0,
+    ):
+        executor = self.executor
+        asyncio.run(
+            self.run_evaluations(
+                executor,
+                lineardesign_penalty,
+                lineardesign_penalty_weight,
+            )
+        )
 
     def handle_exception(self, exc):
         import io
