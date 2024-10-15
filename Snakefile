@@ -60,6 +60,7 @@ rule broadcast_data:
         seq=config['input'],
         config=config['vaxpress-config'],
         SCRIPT = workflow.source_path("./gcloud-setup.sh"),
+        LD_PATH = os.path.join(workflow.basedir, "contrib/LinearDesign"),
         INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
         ZONE=config.get("zone", "asia-south1-a")
     output: "copied_data.txt"
@@ -70,6 +71,8 @@ rule broadcast_data:
         && gcloud compute scp --strict-host-key-checking=no {params.config} {params.INSTANCE_NAME}:config.json \
             --zone={params.ZONE} \
         && gcloud compute scp --strict-host-key-checking=no {params.SCRIPT} {params.INSTANCE_NAME}:~ \
+            --zone={params.ZONE} \
+        && gcloud compute scp --recurse --strict-host-key-checking=no {params.LD_PATH} {params.INSTANCE_NAME}:~ \
             --zone={params.ZONE} \
         && touch {output}
         """
@@ -85,7 +88,9 @@ rule run_shell_script:
         """
         gcloud compute ssh --strict-host-key-checking=no {params.INSTANCE_NAME} --zone={params.ZONE} --command \
             'bash gcloud-setup.sh' \
-            && touch {output}
+        && gcloud compute ssh {params.INSTANCE_NAME} --command "cd ./LinearDesign && make" \
+            --zone={params.ZONE} \
+        && touch {output}
         """
 
 rule run_vaxpress:
@@ -97,7 +102,7 @@ rule run_vaxpress:
     shell:
         """
         gcloud compute ssh --strict-host-key-checking=no {params.INSTANCE_NAME} --zone={params.ZONE} --command \
-            'source VaxPress/.venv/bin/activate && vaxpress -p $(nproc) -i sequence.fasta -o results --preset config.json' \
+            'source VaxPress/.venv/bin/activate && vaxpress -p $(nproc) -i sequence.fasta -o results --preset config.json --lineardesign-dir ~/LinearDesign' \
             && touch {output}
         """
 

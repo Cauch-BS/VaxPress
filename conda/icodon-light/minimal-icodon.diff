@@ -42,7 +42,7 @@ diff --color -ruN iCodon-3.1/NAMESPACE iCodon-3.1.fixed/NAMESPACE
 @@ -4,22 +4,12 @@
  export(add_codon_counts)
  export(codon_distance)
- export(count_codons)
+ export()
 -export(evolution)
  export(optimizer)
 -export(plot_optimization)
