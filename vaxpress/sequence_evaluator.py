@@ -108,18 +108,41 @@ class FoldEvaluator(Evaluator):
         else:
             raise ValueError(f"Unsupported RNA folding engine: {self.engine}")
 
-    def __call__(self, seq):
+    def __call__(self, seq, lineardesign_penalty=None, lineardesign_penalty_weight=1.0):
         folding, mfe = self._fold(seq)
         stems = Evaluator.find_stems(folding)
         folding, stems = Evaluator.unfold_unstable_structure(folding, stems)
         loops = dict(Counter(map(len, self.pat_find_loops.findall(folding))))
 
+        penalty_score = 0
+        if lineardesign_penalty:
+            penalty_score = self.calculate_penalty(
+                stems, lineardesign_penalty, lineardesign_penalty_weight
+            )
         return {
             "folding": folding,
             "mfe": mfe,
             "stems": stems,
             "loops": loops,
+            "penalty": penalty_score,
         }
+
+    def calculate_penalty(
+        self, stems, lineardesign_penalty, lineardesign_penalty_weight=1.0
+    ):
+        start = int(lineardesign_penalty.split("~")[0])
+        end = int(lineardesign_penalty.split("~")[1])
+        penalty = 0
+        for stem in stems:
+            stem_pairs = zip(stem[0], stem[1])
+            for p5, p3 in stem_pairs:
+                if (start <= p5 <= end and not start <= p3 <= end) or (
+                    start <= p3 <= end and not start <= p5 <= end
+                ):
+                    penalty += 1
+                elif start <= p5 <= end and start <= p3 <= end:
+                    penalty -= 1
+        return penalty * lineardesign_penalty_weight
 
 
 class PairingProbEvaluator(Evaluator):
@@ -251,12 +274,19 @@ class SequenceEvaluator:
         # log.info('\t Uses Base Pairing Probability: {}'.format(self.scorefuncs_bpp))
         # log.info('\t Does not use Folding: {}'.format(self.scorefuncs_nofolding))
 
-    def evaluate(self, seqs, executor):
+    def evaluate(
+        self, seqs, executor, lineardesign_penalty, lineardesign_penalty_weight
+    ):
         with SequenceEvaluationSession(self, seqs, executor) as sess:
-            sess.evaluate()
+            sess.evaluate(lineardesign_penalty, lineardesign_penalty_weight)
 
             if not sess.errors:
-                total_scores = [sum(s.values()) for s in sess.scores]
+                total_scores = []
+                for i, score_dict in enumerate(sess.scores):
+                    penalty = sess.foldings[i]["penalty"]
+                    fitness_score = sum(score_dict.values()) - penalty
+                    total_scores.append(fitness_score)
+                # total_scores = [sum(s.values()) for s in sess.scores]
                 return (
                     total_scores,
                     sess.scores,
@@ -269,7 +299,12 @@ class SequenceEvaluator:
 
     def get_folding(self, seq):
         if seq not in self.folding_cache:
-            self.folding_cache[seq] = self.foldeval(seq)
+            self.folding_cache[seq] = self.foldeval(
+                seq,
+                self.execopts.lineardesign_penalty,
+                self.execopts.lineardesign_penalty_weight,
+            )
+
         return self.folding_cache[seq]
 
     def get_pairing_prob(self, seq):
@@ -356,7 +391,7 @@ class SequenceEvaluationSession:
             self.pbar.close()
         log.info("")
 
-    def evaluate(self) -> None:
+    def evaluate(self, lineardesign_penalty, lineardesign_penalty_weight) -> None:
         jobs = set()
 
         # First, base pairing probability is calculated.
@@ -388,7 +423,9 @@ class SequenceEvaluationSession:
                     self.pbar.update()
                 continue
 
-            future = self.executor.submit(self.foldeval, seq)
+            future = self.executor.submit(
+                self.foldeval, seq, lineardesign_penalty, lineardesign_penalty_weight
+            )
             future._seqidx = i  # type: ignore[attr-defined]
             future._type = "folding"  # type: ignore[attr-defined]
             jobs.add(future)

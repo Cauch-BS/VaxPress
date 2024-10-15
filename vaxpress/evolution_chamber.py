@@ -76,6 +76,8 @@ ExecutionOptions = namedtuple(
         "lineardesign_dir",
         "lineardesign_lambda",
         "lineardesign_omit_start",
+        "lineardesign_penalty",
+        "lineardesign_penalty_weight",
         "folding_engine",
     ],
 )
@@ -167,6 +169,7 @@ class CDSEvolutionChamber:
                 self.execopts.lineardesign_lambda,
                 self.execopts.lineardesign_dir,
                 self.execopts.lineardesign_omit_start,
+                self.execopts.lineardesign_penalty,
                 self.quiet,
             )
         elif self.execopts.random_initialization or self.execopts.protein:
@@ -335,7 +338,12 @@ class CDSEvolutionChamber:
                 # Only the initial sequences are evaluated
                 self.flatten_seqs = ["".join(seq) for seq in self.population]
                 total_scores, scores, metrics, foldings, pairingprobs = (
-                    self.seqeval.evaluate(self.flatten_seqs, executor)
+                    self.seqeval.evaluate(
+                        self.flatten_seqs,
+                        executor,
+                        self.execopts.lineardesign_penalty,
+                        self.execopts.lineardesign_penalty_weight,
+                    )
                 )
                 if total_scores is None:
                     error_code = 1
@@ -355,7 +363,12 @@ class CDSEvolutionChamber:
                     break
 
                 total_scores, scores, metrics, foldings, pairingprobs = (
-                    self.seqeval.evaluate(self.flatten_seqs, executor)
+                    self.seqeval.evaluate(
+                        self.flatten_seqs,
+                        executor,
+                        self.execopts.lineardesign_penalty,
+                        self.execopts.lineardesign_penalty_weight,
+                    )
                 )
                 if total_scores is None:
                     # Termination due to errors from one or more scoring functions

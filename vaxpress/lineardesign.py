@@ -66,6 +66,7 @@ def read_live_updates(stdout, bufsize=8192):
 def run_lineardesign(
     lineardesign_dir,
     sequence,
+    penalty_region,
     lmd=0.5,
     quiet=False,
     codonusage="codon_usage_freq_table_human.csv",
@@ -85,8 +86,22 @@ def run_lineardesign(
     j = 0
     ret = []
 
+    penalty_mode = "0"
+    if penalty_region != "":
+        penalty_mode = "1"
+    # with sp.Popen([lineardesign_bin, str(lmd), '0', codonusage],
     with sp.Popen(
-        [lineardesign_bin, str(lmd), "0", codonusage],
+        [
+            lineardesign_bin,
+            str(lmd),
+            "0",
+            codonusage,
+            "",
+            penalty_mode,
+            penalty_region,
+            "0",
+            "0",
+        ],
         cwd=lineardesign_dir,
         stdin=sp.PIPE,
         stdout=sp.PIPE,
@@ -114,7 +129,7 @@ def run_lineardesign(
     rnaseq = lines[0].strip()
     rnastr = lines[1].split(": ")[1].strip()
     mfe = float(lines[2].split(": ")[1].split()[0])
-    cai = float(lines[2].split(": ")[2].strip())
+    cai = float(lines[3].split(": ")[1].strip()[0])
 
     return {
         "seq": rnaseq,
