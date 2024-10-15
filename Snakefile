@@ -60,7 +60,7 @@ rule broadcast_data:
         seq=config['input'],
         config=config['vaxpress-config'],
         SCRIPT = workflow.source_path("./gcloud-setup.sh"),
-        LD_PATH = os.path.join(workflow.basedir, "contrib/LinearDesign"),
+        LD_PATH = os.path.join(workflow.basedir, "contrib", "LinearDesign")
         INSTANCE_NAME=config.get("instance-name", f"vaxpress-instance-{localtime().tm_hour}-{localtime().tm_min}-{localtime().tm_sec}"),
         ZONE=config.get("zone", "asia-south1-a")
     output: "copied_data.txt"

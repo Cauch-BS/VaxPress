@@ -5,13 +5,12 @@ sudo apt-get install -y python3-pip python3-venv
 
 # in case make is not installed
 if ! [ -x "$(command -v make)" ]; then
-  sudo apt-get install -y make
+  sudo apt-get install -y build-essential
 fi
 
 # clone vaxpress
 git clone https://github.com/Cauch-BS/VaxPress.git
 cd VaxPress 
-git checkout LD_penalty
 
 python3 -m venv .venv
 source .venv/bin/activate && pip3 install . 
