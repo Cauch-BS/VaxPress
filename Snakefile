@@ -9,7 +9,7 @@ MACHINE_TYPE = "c2d-highcpu-56"
 IMAGE = "ubuntu-2204-lts"
 BOOT_DISK_SIZE = "10GB"
 
-min_version("8.18.0")
+min_version("8.17.0")
 
 rule all:
     input: "instance_deleted.txt"
