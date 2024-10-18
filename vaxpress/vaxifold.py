@@ -269,76 +269,72 @@ class AsyncVaxiFoldClient:
 
         return results
 
-    async def call_rpc(self, payloads, executor):
-        executor = executor or ProcessPoolExecutor()
-        loop = asyncio.get_event_loop()
+    async def call_rpc(self, payloads, loop):
+        loop = loop or asyncio.get_running_loop()
+
         future = loop.create_future()
         callid = uuid.uuid4().hex
+
         self.futures[callid] = future
-        self.results[callid] = [len(payloads), [None for _ in range(len(payloads))]]
+        self.results[callid] = [len(payloads), [None] * len(payloads)]
 
         # Ensure the channel is open
         if self.channel.is_closed:
             await self.connect()
 
-        async def publish_message(seqid, payload):
+        for seqid, payload in enumerate(payloads):
             message = Message(
                 payload,
                 reply_to=self.callback_queue.name,
                 correlation_id=f"{callid}:{seqid}",
             )
-            await loop.run_in_executor(
-                executor,
-                self.channel.default_exchange.publish,
-                message,
-                self.queue,
-            )
 
-        await asyncio.gather(
-            *[publish_message(seqid, payload) for seqid, payload in enumerate(payloads)]
-        )
+            await self.channel.default_exchange.publish(message, routing_key=self.queue)
+
         return await future
+
+    # NOTE: EXEUCTOR ARGUMENT EXISTS FOR COMPATIBILITY WITH LOCAL VAXIFOLD
 
     def call_viennarna_fold(self, seqs, executor=None):
         payloads = [
             json.dumps({"method": "viennarna_fold", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, executor)
+        return self.call_rpc(payloads, None)
 
     def call_linearfold(self, seqs, executor=None):
         payloads = [
             json.dumps({"method": "linearfold", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, executor)
+        return self.call_rpc(payloads, None)
 
     def call_viennarna_partition(self, seqs, executor=None):
         payloads = [
             json.dumps({"method": "viennarna_partition", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, executor)
+        return self.call_rpc(payloads, None)
 
     def call_linearpartition(self, seqs, executor=None):
         payloads = [
             json.dumps({"method": "linearpartition", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, executor)
+        return self.call_rpc(payloads, None)
 
     def fold(self, seqs, executor=None):
         if self.folding_engine == "viennarna":
-            return self.call_viennarna_fold(seqs, executor)
+            return self.call_viennarna_fold(seqs)
         elif self.folding_engine == "linearfold":
-            return self.call_linearfold(seqs, executor)
+            return self.call_linearfold(seqs)
         else:
             raise ValueError(f"Unknown engine: {self.folding_engine}")
 
     def partition(self, seqs, executor=None):
         if self.partition_engine == "viennarna":
-            return self.call_viennarna_partition(seqs, executor)
+            return self.call_viennarna_partition(seqs)
         elif self.partition_engine == "linearpartition":
-            return self.call_linearpartition(seqs, executor)
+            return self.call_linearpartition(seqs)
         else:
             raise ValueError(f"Unknown engine: {self.partition_engine}")
