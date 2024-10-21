@@ -232,15 +232,6 @@ class AsyncVaxiFoldClient:
 
     @staticmethod
     def parse_response(response):
-        if "error" in response:
-            log.info(f"Error Occured in Worker: {response['error']}")
-            log.info(f"Last Logs at Worker: {response['logs']}")
-            if "traceback" in response:
-                log.info(f"Traceback at Worker: {response['traceback']}")
-            raise ConnectionAbortedError(
-                f"Error Occured in Worker: {response['error']}"
-            )
-
         bp_dtype = [("i", "i4"), ("j", "i4"), ("prob", "f8")]
         free_energy, seqlen = unpack("di", response[:12])
         has_bpp = len(response) > 12 + seqlen

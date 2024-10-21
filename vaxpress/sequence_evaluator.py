@@ -493,12 +493,11 @@ class FitnessEvaluationSession:
             try:
                 new_mfe_results = await mfe_future
                 new_pf_results = await pf_future
-                for i, entry in enumerate(self, zip(mfe_results, pf_results)):
+                for i, entry in enumerate(zip(mfe_results, pf_results)):
                     mfe_entry, pf_entry = entry
-                    if (mfe_entry) and (pf_entry):
-                        continue
-                    mfe_results[i] = new_mfe_results.pop(0)
-                    pf_results[i] = new_pf_results.pop(0)
+                    if (not mfe_entry) and (not pf_entry):
+                        mfe_results[i] = new_mfe_results.pop(0)
+                        pf_results[i] = new_pf_results.pop(0)
                     if not isinstance(mfe_results[i], dict):
                         mfe_results[i] = mfe_results[i][0]
                     if not isinstance(pf_results[i], dict):
