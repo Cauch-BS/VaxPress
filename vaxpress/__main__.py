@@ -460,7 +460,7 @@ def parse_options(scoring_funcs, preset, default_off):
     grp.add_argument(
         "--port",
         type=int,
-        default=None,
+        default=5672,
         metavar="PORT",
         help="PORT of the RabbitMQ server",
     )
