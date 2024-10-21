@@ -5,13 +5,10 @@ import asyncio
 from struct import unpack
 import numpy as np
 from scipy import sparse  # type: ignore
-from tqdm import tqdm  # type: ignore
 from tqdm.asyncio import tqdm_asyncio as atqdm  # type: ignore
 
 from concurrent.futures import Executor, ProcessPoolExecutor
 from importlib.metadata import version
-
-from .log import log
 
 
 class LocalVaxiFold:
@@ -172,7 +169,6 @@ class AsyncVaxiFoldClient:
         self.queue = queue
         self.folding_engine = folding_engine
         self.partition_engine = partition_engine
-        self.progress_bars = {}
         self.futures = {}
         self.results = {}
 
@@ -215,12 +211,6 @@ class AsyncVaxiFoldClient:
         self.results[callid][1][seqid] = result
         self.results[callid][0] -= 1
 
-        if callid not in self.progress_bars:
-            total_tasks = len(self.results[callid][1])
-            self.progress_bars[callid] = tqdm(
-                total=total_tasks, desc="Folding seqs", unit="requests"
-            )
-
         self.progress_bars[callid].update(1)
 
         if self.results[callid][0] <= 0:
@@ -260,7 +250,7 @@ class AsyncVaxiFoldClient:
 
         return results
 
-    async def call_rpc(self, payloads, loop):
+    async def call_rpc(self, payloads, loop, task_description):
         loop = loop or asyncio.get_running_loop()
 
         future = loop.create_future()
@@ -269,6 +259,10 @@ class AsyncVaxiFoldClient:
         self.futures[callid] = future
         self.results[callid] = [len(payloads), [None] * len(payloads)]
 
+        total_tasks = len(payloads)
+        self.progress_bars[callid] = atqdm(
+            total=total_tasks, desc=task_description, unit="requests"
+        )
         # Ensure the channel is open
         if self.channel.is_closed:
             await self.connect()
@@ -291,28 +285,28 @@ class AsyncVaxiFoldClient:
             json.dumps({"method": "viennarna_fold", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, None)
+        return self.call_rpc(payloads, None, "Folding seqs")
 
     def call_linearfold(self, seqs, executor=None):
         payloads = [
             json.dumps({"method": "linearfold", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, None)
+        return self.call_rpc(payloads, None, "Folding seqs")
 
     def call_viennarna_partition(self, seqs, executor=None):
         payloads = [
             json.dumps({"method": "viennarna_partition", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, None)
+        return self.call_rpc(payloads, None, "Partitioning seqs")
 
     def call_linearpartition(self, seqs, executor=None):
         payloads = [
             json.dumps({"method": "linearpartition", "args": {"seq": seq}}).encode()
             for seq in seqs
         ]
-        return self.call_rpc(payloads, None)
+        return self.call_rpc(payloads, None, "Partitioning seqs")
 
     def fold(self, seqs, executor=None):
         if self.folding_engine == "viennarna":

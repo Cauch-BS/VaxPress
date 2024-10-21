@@ -133,7 +133,7 @@ class ParseStructure:
 
 class SequenceEvaluator:
 
-    folding_cache_size = 16384
+    folding_cache_size = 8192
 
     def __init__(
         self,
