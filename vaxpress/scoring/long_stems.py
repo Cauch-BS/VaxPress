@@ -64,18 +64,12 @@ class LongStemFitness(ScoringFunction):
         if weight != 0:
             self.penalty_metric_flags[self.name] = "l"
 
-    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):  # type: ignore[assignment]
+    def score(self, seqs, foldings: dict = None):  # type: ignore[assignment]
         metrics = []
         scores = []
         if foldings:
             for fold in foldings:
                 stems = fold["stems"]
-                longstems = sum(len(loc_l) >= self.threshold for loc_l, _ in stems)
-                metrics.append(longstems)
-                scores.append(longstems * self.weight)
-        elif pairingprobs:
-            for prob in pairingprobs:
-                stems = prob["stems"]
                 longstems = sum(len(loc_l) >= self.threshold for loc_l, _ in stems)
                 metrics.append(longstems)
                 scores.append(longstems * self.weight)

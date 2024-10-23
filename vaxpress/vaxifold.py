@@ -110,18 +110,12 @@ class LocalVaxiFold:
         fc = RNA.fold_compound(seq)
         fold, fe = fc.pf()
         bpp = np.array(fc.bpp())[1:, 1:]
-        bp_dtype = [("i", "i4"), ("j", "i4"), ("prob", "f8")]
-        indices = np.nonzero(bpp)
-        probabilities = bpp[indices]
-        bpmtx = np.zeros(probabilities.size, dtype=bp_dtype)
-        bpmtx["i"] = indices[0]
-        bpmtx["j"] = indices[1]
-        bpmtx["prob"] = probabilities
+        pi_array = np.sum(bpp + bpp.T, axis=0)
+        del bpp
         results = {
             "structure": fold,
             "free_energy": fe,
-            "bpp": bpmtx,
-            "pi_array": sparse.coo_matrix(bpp + bpp.T),
+            "pi_array": pi_array,
         }
         assert len(fold) == len(seq), "Partitioning failed for sequence: %s" % seq
         return results
@@ -142,17 +136,15 @@ class LocalVaxiFold:
         results = {
             "structure": pred["structure"],
             "free_energy": pred["free_energy"],
-            "bpp": pred["bpp"],
         }
-
-        base_pair_i = results["bpp"]["i"]
-        base_pair_j = results["bpp"]["j"]
-        base_pair_prob = results["bpp"]["prob"]
-        pair_prob_one_sided = sparse.coo_matrix(
+        base_pair_i = pred["bpp"]["i"]
+        base_pair_j = pred["bpp"]["j"]
+        base_pair_prob = pred["bpp"]["prob"]
+        pi_array_matrix = sparse.coo_array(
             (base_pair_prob, (base_pair_i, base_pair_j)), shape=(len(seq), len(seq))
         )
-        pair_prob = pair_prob_one_sided + pair_prob_one_sided.T
-        results["pi_array"] = pair_prob
+        pi_array = np.sum(pi_array_matrix + pi_array_matrix.T, axis=0)
+        results["pi_array"] = pi_array
 
         return results
 
@@ -243,18 +235,16 @@ class AsyncVaxiFoldClient:
         results = {
             "structure": response[12 : 12 + seqlen].decode(),
             "free_energy": free_energy,
-            "bpp": np.frombuffer(response[12 + seqlen :], dtype=bp_dtype),
         }
-
-        base_pair_i = results["bpp"]["i"]
-        base_pair_j = results["bpp"]["j"]
-        base_pair_prob = results["bpp"]["prob"]
-        pair_prob_one_sided = sparse.coo_matrix(
+        bpp = np.frombuffer(response[12 + seqlen :], dtype=bp_dtype)
+        base_pair_i = bpp["i"]
+        base_pair_j = bpp["j"]
+        base_pair_prob = bpp["prob"]
+        pi_array_matrix = sparse.coo_matrix(
             (base_pair_prob, (base_pair_i, base_pair_j)), shape=(seqlen, seqlen)
         )
-        pair_prob = pair_prob_one_sided + pair_prob_one_sided.T
-        results["pi_array"] = pair_prob
-
+        pi_array = np.sum(pi_array_matrix + pi_array_matrix.T, axis=0)
+        results["pi_array"] = pi_array
         return results
 
     async def call_rpc(self, payloads, loop):

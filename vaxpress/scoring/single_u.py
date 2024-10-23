@@ -59,8 +59,7 @@ class UnpairedUridineFitness(ScoringFunction):
                 seq.encode().translate(self.trans_table), dtype=np.uint8
             )
             u_idx = np.where(seqindex == 3, 1, 0)
-            pi_cooarray = folding["pi_array"]
-            pi_array = pi_cooarray.sum(axis=0)
+            pi_array = folding["pi_array"]
             xi_array = 1 - pi_array
             # sum only the Pi of the U index
             total_unpaired_u_probs = np.dot(xi_array, u_idx)
@@ -75,8 +74,7 @@ class UnpairedUridineFitness(ScoringFunction):
             seq.encode().translate(self.trans_table), dtype=np.uint8
         )
         U_idx = np.where(seqindex == 3, 1, 0)
-        pi_cooarray = folding["pi_array"]
-        pi_array = pi_cooarray.sum(axis=0)
+        pi_array = folding["pi_array"]
         xi_array = 1 - pi_array
         U_sup = np.dot(xi_array, U_idx)
         U_sup = U_sup.item()

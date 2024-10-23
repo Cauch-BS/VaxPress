@@ -77,8 +77,7 @@ class PairingProbFitness(ScoringFunction):
         weighted_aups = []
         weights = np.array([self.a_weight, 1, 1, self.u_weight])  # ACGU
         for seq, folding in zip(seqs, foldings):
-            pi_cooarray = folding["pi_array"]
-            pi_array = pi_cooarray.sum(axis=0)
+            pi_array = folding["pi_array"]
             seqindex = np.frombuffer(
                 seq.encode().translate(self.trans_table), dtype=np.uint8
             )
@@ -93,8 +92,7 @@ class PairingProbFitness(ScoringFunction):
 
     def annotate_sequence(self, seq, folding):
         weights = np.array([self.a_weight, 1, 1, self.u_weight])
-        pi_cooarray = folding["pi_array"]
-        pi_array = pi_cooarray.sum(axis=0)
+        pi_array = folding["pi_array"]
         seqindex = np.frombuffer(
             seq.encode().translate(self.trans_table), dtype=np.uint8
         )

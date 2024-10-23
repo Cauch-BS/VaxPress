@@ -133,7 +133,7 @@ class ParseStructure:
 
 class SequenceEvaluator:
 
-    folding_cache_size = 8192
+    folding_cache_size = 1024
 
     def __init__(
         self,
@@ -405,18 +405,17 @@ class FitnessEvaluationSession:
             self.pbar_nofold.close()
         if self.pbar_fold:
             self.pbar_fold.close()
+        del self.foldings
         pass
 
-    async def call_scorefunc(self, executor, scorefunc, seqs, foldings=None):
-        loop = asyncio.get_running_loop()
-
-        if foldings is None:
-            future = loop.run_in_executor(executor, scorefunc, seqs)
+    def call_scorefunc(self, executor, scorefunc, seqs, foldings=None):
+        if foldings:
+            future = executor.submit(scorefunc, seqs, foldings)
         else:
-            future = loop.run_in_executor(executor, scorefunc, seqs, foldings)
+            future = executor.submit(scorefunc, seqs)
 
         try:
-            ret = await future
+            ret = future.result()
             if ret is None:
                 self.errors.append("KeyboardInterrupt")
                 return
@@ -436,135 +435,118 @@ class FitnessEvaluationSession:
             for s, u in zip(self.metrics, updates):
                 s[k] = u
 
-    async def run_scoring_without_folding(self, executor):
-        tasks = []
+    def run_scoring_without_folding(self, executor):
         for scorefunc in self.scorefuncs_nofolding:
-            task = self.call_scorefunc(executor, scorefunc, self.seqs)
-            tasks.append(task)
+            self.call_scorefunc(executor, scorefunc, self.seqs)
             self.pbar_nofold.update(1)
-        await asyncio.gather(*tasks)
 
-    async def run_scoring_with_folding(
-        self,
-        executor,
-        lineardesign_penalty,
-        lineardesign_penalty_weight,
-    ):
-        loop = asyncio.get_running_loop()
-
-        mfe_results = [None for _ in range(len(self.seqs))]
-        pf_results = [None for _ in range(len(self.seqs))]
-
+    async def run_folding(self, executor):
+        self.mfe_results = [None for _ in range(len(self.seqs))]
+        self.pf_results = [None for _ in range(len(self.seqs))]
         new_seqs = []
-
         for i, seq in enumerate(self.seqs):
             if seq in self.folding_cache:
-                mfe_results[i], pf_results[i] = self.folding_cache[seq]
+                self.mfe_results[i], self.pf_results[i] = self.folding_cache[seq]
                 continue
             new_seqs.append(seq)
 
         try:
             async with self.vaxifold:
                 if self.scorefuncs_folding:
-                    mfe_foldings = await self.vaxifold.fold(new_seqs, self.executor)
-                pf_foldings = await self.vaxifold.partition(new_seqs, self.executor)
-
+                    self.mfe_foldings = await self.vaxifold.fold(new_seqs, executor)
+                else:
+                    self.mfe_foldings = None
+                self.pf_foldings = await self.vaxifold.partition(new_seqs, executor)
         except Exception as exc:
             return self.handle_exception(exc)
 
-        pf_future = loop.run_in_executor(
-            executor,
-            self.foldeval,
-            self.seqs,
-            pf_foldings,
-            lineardesign_penalty,
-            lineardesign_penalty_weight,
-        )
-
-        if self.scorefuncs_folding:
-            mfe_future = loop.run_in_executor(
-                executor,
-                self.foldeval,
-                self.seqs,
-                mfe_foldings,
-                lineardesign_penalty,
-                lineardesign_penalty_weight,
-            )
-            try:
-                new_mfe_results = await mfe_future
-                new_pf_results = await pf_future
-                for i, entry in enumerate(zip(mfe_results, pf_results)):
-                    mfe_entry, pf_entry = entry
-                    if (not mfe_entry) and (not pf_entry):
-                        mfe_results[i] = new_mfe_results.pop(0)
-                        pf_results[i] = new_pf_results.pop(0)
-                    if not isinstance(mfe_results[i], dict):
-                        mfe_results[i] = mfe_results[i][0]
-                    if not isinstance(pf_results[i], dict):
-                        pf_results[i] = pf_results[i][0]
-                    mfe_results[i].update(
-                        {
-                            key: pf_results[i][key]
-                            for key in pf_results[i]
-                            if key not in mfe_results[i]
-                        }
-                    )
-                    self.folding_cache[self.seqs[i]] = mfe_results[i], pf_results[i]
-                self.foldings = mfe_results
-
-            except Exception as exc:
-                return self.handle_exception(exc)
-
-        elif not self.scorefuncs_folding:
-            try:
-                new_pf_results = await pf_future
-                for i, pf_entry in enumerate(pf_results):
-                    if pf_entry:
-                        continue
-                    pf_results[i] = new_pf_results.pop(0)
-                    if not isinstance(pf_results[i], dict):
-                        pf_results[i] = pf_results[i][0]
-                    self.folding_cache[self.seqs[i]] = dict(), pf_results[i]
-                self.foldings = pf_results
-            except Exception as exc:
-                return self.handle_exception(exc)
-
-        tasks = []
-
-        for scorefunc in self.scorefuncs_vaxifold:
-            task = self.call_scorefunc(executor, scorefunc, self.seqs, self.foldings)
-            tasks.append(task)
-            self.pbar_fold.update(1)
-
-        await asyncio.gather(*tasks)
-
-    async def run_evaluations(
+    def run_scoring_with_folding(
         self,
         executor,
         lineardesign_penalty,
         lineardesign_penalty_weight,
     ):
-        tasks_without_folding = self.run_scoring_without_folding(executor)
-        tasks_with_folding = self.run_scoring_with_folding(
-            executor,
+        asyncio.run(self.run_folding(executor))
+
+        pf_future = executor.submit(
+            self.foldeval,
+            self.seqs,
+            self.pf_foldings,
             lineardesign_penalty,
             lineardesign_penalty_weight,
         )
 
-        await asyncio.gather(tasks_without_folding, tasks_with_folding)
-
-    def evaluate(
-        self,
-        lineardesign_penalty=None,
-        lineardesign_penalty_weight=1.0,
-    ):
-        executor = self.executor
-        asyncio.run(
-            self.run_evaluations(
-                executor,
+        if self.scorefuncs_folding:
+            mfe_future = executor.submit(
+                self.foldeval,
+                self.seqs,
+                self.mfe_foldings,
                 lineardesign_penalty,
                 lineardesign_penalty_weight,
             )
+
+        try:
+            if self.scorefuncs_folding:
+                new_mfe_results = mfe_future.result()
+            new_pf_results = pf_future.result()
+            if self.scorefuncs_folding:
+                for i, entry in enumerate(zip(self.mfe_results, self.pf_results)):
+                    mfe_entry, pf_entry = entry
+                    if (not mfe_entry) and (not pf_entry):
+                        self.mfe_results[i] = new_mfe_results.pop(0)
+                        self.pf_results[i] = new_pf_results.pop(0)
+                    if not isinstance(self.mfe_results[i], dict):
+                        self.mfe_results[i] = self.mfe_results[i][0]
+                    if not isinstance(self.pf_results[i], dict):
+                        self.pf_results[i] = self.pf_results[i][0]
+                    self.mfe_results[i].update(
+                        {
+                            key: self.pf_results[i][key]
+                            for key in self.pf_results[i]
+                            if key not in self.mfe_results[i]
+                        }
+                    )
+                self.folding_cache[self.seqs[i]] = (
+                    self.mfe_results[i],
+                    self.pf_results[i],
+                )
+
+                self.foldings = self.mfe_results
+                del (
+                    self.mfe_results,
+                    self.pf_results,
+                    self.mfe_foldings,
+                    self.pf_foldings,
+                )
+            else:
+                for i, pf_entry in enumerate(self.pf_results):
+                    if pf_entry:
+                        continue
+                    self.pf_results[i] = new_pf_results.pop(0)
+                    if not isinstance(self.pf_results[i], dict):
+                        self.pf_results[i] = self.pf_results[i][0]
+                    self.folding_cache[self.seqs[i]] = dict(), self.pf_results[i]
+                self.foldings = self.pf_results
+                del self.pf_results, self.pf_foldings
+
+        except Exception as exc:
+            return self.handle_exception(exc)
+
+        for scorefunc in self.scorefuncs_vaxifold:
+            self.call_scorefunc(executor, scorefunc, self.seqs, self.foldings)
+            self.pbar_fold.update(1)
+
+    def evaluate(
+        self,
+        lineardesign_penalty,
+        lineardesign_penalty_weight,
+    ):
+        executor = self.executor
+        self.run_scoring_without_folding(executor)
+        self.run_scoring_with_folding(
+            executor,
+            lineardesign_penalty,
+            lineardesign_penalty_weight,
         )
 
     def handle_exception(self, exc):

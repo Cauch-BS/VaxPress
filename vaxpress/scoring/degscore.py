@@ -123,11 +123,6 @@ class DegScoreFitness(ScoringFunction):
             degscores = [
                 call_degscore(seq, fold["folding"]) for seq, fold in zip(seqs, foldings)
             ]
-        elif pairingprobs:
-            degscores = [
-                call_degscore(seq, pairingprob["folding"])
-                for seq, pairingprob in zip(seqs, pairingprobs)
-            ]
         else:
             raise ValueError("No folding or pairing probability data is provided.")
 

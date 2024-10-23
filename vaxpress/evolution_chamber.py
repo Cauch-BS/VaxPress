@@ -392,10 +392,9 @@ class CDSEvolutionChamber:
 
                 if len(self.population) > self.execopts.n_population:
                     # Pick the best mutants in each parent to keep diversity
-                    ind_sorted = self.prioritized_sort_by_parents(total_scores)
+                    idx_sorted = self.prioritized_sort_by_parents(total_scores)
                 else:
-                    ind_sorted = np.argsort(total_scores)[::-1]
-                idx_sorted = [int(i) for i in ind_sorted]
+                    idx_sorted = np.argsort(total_scores)[::-1]
                 survivor_indices = idx_sorted[:n_survivors]
                 survivors = [self.population[i] for i in survivor_indices]
                 survivor_foldings = [foldings[i] for i in survivor_indices]

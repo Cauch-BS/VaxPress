@@ -60,7 +60,7 @@ class LoopLengthFitness(ScoringFunction):
         self.threshold = threshold
         self.weight = -weight / _length_cds
 
-    def score(self, seqs, foldings: dict = None, pairingprobs: dict = None):  # type: ignore[assignment]
+    def score(self, seqs, foldings: dict = None):  # type: ignore[assignment]
         loop_lengths = []
         scores = []
         if foldings:
@@ -68,15 +68,6 @@ class LoopLengthFitness(ScoringFunction):
                 looplen = sum(
                     length * count
                     for length, count in fold["loops"].items()
-                    if length >= self.threshold
-                )
-                loop_lengths.append(looplen)
-                scores.append(looplen * self.weight)
-        elif pairingprobs:
-            for prob in pairingprobs:
-                looplen = sum(
-                    length * count
-                    for length, count in prob["loops"].items()
                     if length >= self.threshold
                 )
                 loop_lengths.append(looplen)

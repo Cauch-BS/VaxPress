@@ -65,7 +65,7 @@ class StartCodonStructureFitness(ScoringFunction):
         if weight != 0:
             self.penalty_metric_flags[self.name] = "s"
 
-    def score(self, seqs: str, foldings: dict = None, pairingprobs: dict = None):  # type: ignore[assignment]
+    def score(self, seqs: str, foldings: dict = None):  # type: ignore[assignment]
         metrics = []
         scores = []
         start_at = len(Sequence(seqs[0], is_cds=False).utr5)
@@ -76,13 +76,8 @@ class StartCodonStructureFitness(ScoringFunction):
                 start_folded = start_structure.count("(") + start_structure.count(")")
                 metrics.append(start_folded)
                 scores.append(start_folded * self.weight)
-        elif pairingprobs:
-            for prob in pairingprobs:
-                start_structure = prob["folding"][start_at : (start_at + self.width)]
-
-                start_folded = start_structure.count("(") + start_structure.count(")")
-                metrics.append(start_folded)
-                scores.append(start_folded * self.weight)
+        else:
+            raise ValueError("No folding or pairing probability data is provided.")
 
         return {"start_str": scores}, {"start_str": metrics}
 
