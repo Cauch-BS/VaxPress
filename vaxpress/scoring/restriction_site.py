@@ -16,9 +16,9 @@ class RestrictionSiteFitness(ScoringFunction):
             "weight",
             dict(
                 type=float,
-                default=100.0,  # penalize for the violations
+                default=-100.0,  # penalize for the violations
                 help="scoring weight for the presence of the restriction site "
-                "(default: 100.0)",
+                "(default: -100.0)",
             ),
         ),
         (
@@ -52,7 +52,7 @@ class RestrictionSiteFitness(ScoringFunction):
         has_site = []
         scores = []
         for seq in seqs:
-            found = 0
+            found = -len(self.restriction_sites)
             for site in self.restriction_sites:
                 if site in seq:
                     found += 1
