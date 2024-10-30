@@ -266,15 +266,15 @@ def parse_options(scoring_funcs, preset, default_off):
         "--protein",
         default=False,
         action="store_true",
-        help="input is a protein sequence" "Should be used with --input",
+        help="input is a protein sequence" "Should be used with --input or --cds",
     )
     grp.add_argument(
         "--utr5",
         default="",
         metavar="SEQ",
         help="Fasta file containing the 5' UTR sequence"
-        "Should be used with --cds or --input --protein"
-        "Shoud have identical descriptions to --cds",
+        "Should be used with --cds or --input with or without --protein"
+        "Shoud have identical descriptions to --cds or --input",
     )
     grp.add_argument(
         "--cds",
@@ -287,8 +287,8 @@ def parse_options(scoring_funcs, preset, default_off):
         default="",
         metavar="SEQ",
         help="Fasta file containing the 3' UTR sequence"
-        "Should be used with --cds or --input --protein"
-        "Shoud have identical descriptions to --cds",
+        "Should be used with --cds or --input with or without --protein"
+        "Shoud have identical descriptions to --cds or --input",
     )
 
     grp = parser.add_argument_group("Execution Options")
