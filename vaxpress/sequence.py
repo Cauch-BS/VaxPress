@@ -5,7 +5,7 @@ from typing import Union
 
 import pandas as pd  # type: ignore[import-untyped]
 from Bio.Data import CodonTable
-from vaxpress.log import log
+from .log import log
 
 PROTEIN_ALPHABETS = "ACDEFGHIKLMNPQRSTVWY" + "*"
 RNA_ALPHABETS = "ACGU"
