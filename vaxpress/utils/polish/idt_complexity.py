@@ -1,7 +1,7 @@
 import os
 import pprint
-from requests import post
-from requests.auth import HTTPBasicAuth
+from requests import post  # type: ignore
+from requests.auth import HTTPBasicAuth  # type: ignore
 from typing import Dict, List
 
 
@@ -59,7 +59,7 @@ class IDTComplexity:
         checked_length = False
 
         for i, seq in enumerate(seqs):
-            idx = seq.find("AAAAAAAAAA")
+            idx = seq.find("AAAAAAAA")
             seq = seq[:idx]
             if not checked_length:
                 if len(seq) not in range(self._MIN_LEN, self._MAX_LEN):

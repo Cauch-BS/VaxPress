@@ -27,8 +27,7 @@ from ...data.codon_usage_data import codon_usage
 from ...data import codon_table
 from itertools import groupby
 import numpy as np
-import pandas as pd
-import RNA
+import RNA  # type: ignore[import]
 
 
 def setup_lookup_tables():
@@ -46,7 +45,7 @@ def setup_lookup_tables():
     return synonymous_codons, aa2codons
 
 
-codon_usage = codon_usage["Homo sapiens"]
+codon_usage = codon_usage["Homo sapiens"]  # type:ignore[assignment]
 codon2aa = codon_table.standard_table
 synonymous_codons, aa2codons = setup_lookup_tables()
 
@@ -120,7 +119,8 @@ def find_alternatives(seq, structure, cds_start, cds_end, roi_start, roi_end):
                 )
             )
 
-    for codon_start, codon, altcodon, deltacai in combinations:
+    for i, entry in enumerate(combinations):
+        codon_start, codon, altcodon, deltacai = entry
         relposition = codon_start - roi_start
         print(str(codon_start + 1).rjust(col_seqbegin + relposition - 1), end=" ")
 
@@ -136,7 +136,7 @@ def find_alternatives(seq, structure, cds_start, cds_end, roi_start, roi_end):
             )
             for f, (a, b) in enumerate(zip(codon, altcodon))
         )
-        print(altcodon_emphasized, end=" ")
+        print(f"{altcodon_emphasized} : Candidate {i}", end=" ")
 
         print(f"  {deltacai:.2f}")
 
@@ -150,21 +150,21 @@ def add_frame_annotation(cdsseq):
     return "".join(cdsseq)
 
 
-def write_fasta(output, seq, structure, cds_start, cds_end, combinations):
+def write_fasta(
+    output, seq, structure, cds_start, cds_end, combinations, selected=None
+):
     annotated_seq = (
         seq[:cds_start]
         + add_frame_annotation(seq[cds_start:cds_end].lower())
         + seq[cds_end:]
     )
 
-    for codon_start, codon, altcodon, deltacai in combinations:
-        output.write(
-            f">{codon_start + 1}:{codon}->{altcodon} deltaCAI:{deltacai:.2f}\n"
-        )
+    selected = input("Select a codon candidate to mutate: ")
+    selected = int(selected)
+    codon_start, codon, altcodon, deltacai = combinations[selected]
 
-        altseq = (
-            annotated_seq[:codon_start] + altcodon + annotated_seq[codon_start + 3 :]
-        )
+    output.write(f">{codon_start + 1}:{codon}->{altcodon} deltaCAI:{deltacai:.2f}\n")
 
-        output.write(altseq + "\n")
-        output.write(structure + "\n")
+    altseq = annotated_seq[:codon_start] + altcodon + annotated_seq[codon_start + 3 :]
+
+    output.write(altseq)
