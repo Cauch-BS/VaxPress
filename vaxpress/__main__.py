@@ -29,6 +29,7 @@ from .presets import load_preset
 from .reporting import ReportGenerator
 from .log import log, initialize_logging
 from Bio import SeqIO
+from Bio.SeqIO import to_dict
 import argparse
 import shutil
 import shlex
@@ -221,23 +222,7 @@ def parse_options(scoring_funcs, preset, default_off):
         description="VaxPress: A Codon Optimizer for mRNA Vaccine Design",
     )
 
-    grp = parser.add_argument_group("Input/Output Options")
-    grp.add_argument(
-        "-i",
-        "--input",
-        required=True,
-        metavar="FILE",
-        help="input fasta file containing the CDS sequence",
-    )
-    grp.add_argument(
-        "--protein",
-        default=False,
-        action="store_true",
-        help="input is a protein sequence",
-    )
-    grp.add_argument(
-        "--cds", default=False, action="store_true", help="input is a CDS sequence"
-    )
+    grp = parser.add_argument_group("Output Options")
     grp.add_argument(
         "-o", "--output", required=True, metavar="DIR", help="output directory"
     )
@@ -268,6 +253,43 @@ def parse_options(scoring_funcs, preset, default_off):
         help="report interval in minutes (default: 5)",
     )
     grp.add_argument("--version", action="version", version=__version__)
+
+    grp = parser.add_argument_group("Input Sequence options")
+    grp.add_argument(
+        "-i",
+        "--input",
+        default="",
+        metavar="FILE",
+        help="input fasta file containing the entire raw sequence (CDS, CDS + or Protein)",
+    )
+    grp.add_argument(
+        "--protein",
+        default=False,
+        action="store_true",
+        help="input is a protein sequence" "Should be used with --input",
+    )
+    grp.add_argument(
+        "--utr5",
+        default="",
+        metavar="SEQ",
+        help="Fasta file containing the 5' UTR sequence"
+        "Should be used with --cds or --input --protein"
+        "Shoud have identical descriptions to --cds",
+    )
+    grp.add_argument(
+        "--cds",
+        default="",
+        metavar="SEQ",
+        help="Fasta file containing the CDS sequence" "Ignored if --input is provided",
+    )
+    grp.add_argument(
+        "--utr3",
+        default="",
+        metavar="SEQ",
+        help="Fasta file containing the 3' UTR sequence"
+        "Should be used with --cds or --input --protein"
+        "Shoud have identical descriptions to --cds",
+    )
 
     grp = parser.add_argument_group("Execution Options")
     grp.add_argument(
@@ -335,6 +357,12 @@ def parse_options(scoring_funcs, preset, default_off):
         metavar="ITER[:WIDTH]",
         help="conserve sequence for the first ITER iterations "
         "except the first WIDTH amino acids",
+    )
+    grp.add_argument(
+        "--preserve-stop",
+        default=False,
+        action="store_true",
+        help="preserve stop codon in the CDS sequence",
     )
     grp.add_argument(
         "--iterations",
@@ -527,10 +555,37 @@ def run_vaxpress():
 
     initialize_outputdir(args.output, args.overwrite)
     initialize_logging(os.path.join(args.output, "log.txt"), args.quiet)
+    if args.input:
+        inputseqs = to_dict(SeqIO.parse(args.input, "fasta"))
+        seqdescr = list(inputseqs.keys())[0]
+        rawseqs = [str(inputseqelem.seq) for inputseqelem in inputseqs.values()]
+        cdsseqs = ["" for _ in rawseqs]
+        utr5s = ["" for _ in rawseqs]
+        utr3s = ["" for _ in rawseqs]
+    if args.cds:
+        input_cds = to_dict(SeqIO.parse(args.cds, "fasta"))
+        input_utr5 = to_dict(SeqIO.parse(args.utr5, "fasta")) if args.utr5 else None
+        input_utr3 = to_dict(SeqIO.parse(args.utr3, "fasta")) if args.utr3 else None
 
-    inputseq = list(SeqIO.parse(args.input, "fasta"))
-    seqdescr = inputseq[0].description
-    cdsseq = [str(inputseqelem.seq) for inputseqelem in inputseq]
+        if input_utr5 is not None:
+            utr5s = [
+                str(input_utr5[desc].seq) if desc in input_utr5 else ""
+                for desc in input_cds.keys()
+            ]
+        elif not input_utr5:
+            utr5s = ["" for _ in input_cds.keys()]
+
+        if input_utr3 is not None:
+            utr3s = [
+                str(input_utr3[desc].seq) if desc in input_utr3 else ""
+                for desc in input_cds.keys()
+            ]
+        elif not input_utr3:
+            utr3s = ["" for _ in input_cds.keys()]
+
+        cdsseqs = [str(input_cds[desc].seq) for desc in input_cds.keys()]
+        rawseqs = ["" for _ in cdsseqs]
+        seqdescr = list(input_cds.keys())[0]
 
     command_line = " ".join(shlex.quote(arg) for arg in sys.argv)
 
@@ -556,7 +611,7 @@ def run_vaxpress():
         seq_description=seqdescr,
         print_top_mutants=args.print_top,
         protein=args.protein,
-        cds=args.cds,
+        preserve_stop=args.preserve_stop,
         addons=addon_paths,
         lineardesign_dir=args.lineardesign_dir,
         lineardesign_lambda=args.lineardesign,
@@ -577,7 +632,13 @@ def run_vaxpress():
 
     try:
         evochamber = CDSEvolutionChamber(
-            cdsseq, scoring_funcs, scoring_options, execution_options
+            rawseqs,
+            cdsseqs,
+            utr5s,
+            utr3s,
+            scoring_funcs,
+            scoring_options,
+            execution_options,
         )
 
         status = None
@@ -600,7 +661,7 @@ def run_vaxpress():
                     evochamber.metainfo,
                     scoring_options,
                     execution_options,
-                    inputseq[0],
+                    rawseqs[0] if args.input else utr5s[0] + cdsseqs[0] + utr3s[0],
                     evochamber.bestseq,
                     scoring_funcs,
                 )

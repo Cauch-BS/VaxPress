@@ -165,5 +165,3 @@ cython_debug/
 #.idea/
 # pixi environments
 .pixi
-*.fasta
-*.fa

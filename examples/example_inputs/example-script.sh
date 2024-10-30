@@ -1,0 +1,1 @@
+vaxpress --cds storage_CDS.fa --protein --utr3 storage_UTR.fasta --iterations 10 -o test_13 --resite-weight 0

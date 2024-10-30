@@ -39,13 +39,10 @@ from tabulate import tabulate  # type: ignore[import-untyped]
 
 from . import __version__
 from .log import hbar, hbar_double, log
-from .mutant_generator import STOP, MutantGenerator
+from .mutant_generator import MutantGenerator
 from .presets import dump_to_preset
 from .sequence import Sequence
 from .sequence_evaluator import SequenceEvaluator
-
-PROTEIN_ALPHABETS = "ACDEFGHIKLMNPQRSTVWY" + "*"
-RNA_ALPHABETS = "ACGU"
 
 ExecutionOptions = namedtuple(
     "ExecutionOptions",
@@ -68,7 +65,7 @@ ExecutionOptions = namedtuple(
         "species",
         "codon_table",
         "protein",
-        "cds",
+        "preserve_stop",
         "quiet",
         "seq_description",
         "print_top_mutants",
@@ -100,20 +97,33 @@ class CDSEvolutionChamber:
 
     def __init__(
         self,
-        cdsseq: list[str],
+        rawseqs: list[str],
+        cdsseqs: list[str],
+        utr5s: list[str],
+        utr3s: list[str],
         scoring_funcs: dict,
         scoring_options: dict,
         exec_options: ExecutionOptions,
     ):
-        self.seqall = [Sequence(seqs) for seqs in cdsseq]
+        self.seqall = [
+            Sequence(
+                seq,
+                exec_options.codon_table,
+                exec_options.protein,
+                cdsseq,
+                utr5,
+                utr3,
+                exec_options.preserve_stop,
+            )
+            for seq, cdsseq, utr5, utr3 in zip(rawseqs, cdsseqs, utr5s, utr3s)
+        ]
         assert len(set((seq.translate(seq.cdsseq) for seq in self.seqall))) == 1, (
             "The sequences must have the same protein sequence. "
             "Please check the input sequences."
             "Currently the sequences are: "
             + ", ".join(seq.translate(seq.cdsseq) for seq in self.seqall)
         )
-        self.seq = self.seqall[0]
-        self.cdsseq = self.seq.cdsseq
+        self.cdsseqall = [seq.cdsseq for seq in self.seqall]
         self.seq_description = exec_options.seq_description
         self.outputdir = exec_options.output
         self.scoringfuncs = scoring_funcs
@@ -133,49 +143,27 @@ class CDSEvolutionChamber:
     def initialize(self) -> None:
         self.checkpoint_path = os.path.join(self.outputdir, "checkpoints.tsv")
         self.log_file = open(os.path.join(self.outputdir, "log.txt"), "w")
-
-        if self.execopts.protein:
-            invalid_letters = set(self.cdsseq) - set(PROTEIN_ALPHABETS)
-            if invalid_letters:
-                raise ValueError(
-                    "Invalid protein sequence: " f'{" ".join(invalid_letters)}'
-                )
-            if self.cdsseq[-1] != STOP:
-                if isinstance(self.cdsseq, str):
-                    self.cdsseq += STOP
-                elif isinstance(self.cdsseq, list):
-                    self.cdsseq.append(STOP)
-        else:
-            invalid_letters = set(self.cdsseq) - set(RNA_ALPHABETS)
-            if invalid_letters:
-                raise ValueError(f'Invalid RNA sequence: {" ".join(invalid_letters)}')
-            if len(self.cdsseq) % 3 != 0:
-                raise ValueError("Invalid CDS sequence length")
-
         self.species = self.execopts.species
         self.rand = np.random.RandomState(self.execopts.seed)
+
         self.mutantall = [
             MutantGenerator(
-                seq.cdsseq,
+                seq.rawseq,
                 self.rand,
                 self.execopts.codon_table,
                 self.execopts.protein,
-                self.execopts.cds,
+                seq.cdsseq,  # type: ignore[arg-type]
+                seq.utr5,
+                seq.utr3,
+                self.execopts.preserve_stop,
                 self.execopts.boost_loop_mutations,
             )
             for seq in self.seqall
         ]
-        self.mutantgen = MutantGenerator(
-            self.cdsseq,
-            self.rand,
-            self.execopts.codon_table,
-            self.execopts.protein,
-            self.execopts.cds,
-            self.execopts.boost_loop_mutations,
-        )
+        self.mutantgen = self.mutantall[0]
+
         if self.execopts.lineardesign_lambda is not None:
             log.info("==> Initializing sequence with LinearDesign...")
-
             self.mutantgen.lineardesign_initial_codons(
                 self.execopts.lineardesign_lambda,
                 self.execopts.lineardesign_dir,
@@ -184,11 +172,21 @@ class CDSEvolutionChamber:
                 self.quiet,
             )
         elif self.execopts.random_initialization or self.execopts.protein:
-            self.mutantgen.randomize_initial_codons()
-        self.population = [
-            [seq.utr5] + mutantgen.initial_codons + [seq.utr3]
-            for seq, mutantgen in zip(self.seqall, self.mutantall)
-        ]
+            for mutantgen in self.mutantall:
+                mutantgen.randomize_initial_codons()
+
+        if len(self.seqall) == 1 or self.execopts.lineardesign_lambda:
+            self.population = [
+                [self.mutantgen.utr5]
+                + self.mutantgen.initial_codons
+                + [self.mutantgen.utr3]
+            ]
+        else:
+            self.population = [
+                [seq.utr5] + mutantgen.initial_codons + [seq.utr3]
+                for seq, mutantgen in zip(self.seqall, self.mutantall)
+            ]
+
         self.population_foldings: list = [None for _ in self.population]
         self.population_sources: list = [None for _ in self.population]
         parent_no_length = int(np.log10(self.execopts.n_survivors)) + 1
@@ -200,8 +198,8 @@ class CDSEvolutionChamber:
         self.full_scan_interval = self.execopts.full_scan_interval
         self.in_final_full_scan = False
 
-        self.length_aa = len(self.population[0])
-        self.length_cds = len(self.cdsseq)
+        self.length_aa = len(self.population[0]) - 2
+        self.length_cds = len(self.cdsseqall[0])
 
         if self.execopts.conservative_start is not None:
             cstart_iter, cstart_width = self.execopts.conservative_start.split(":")

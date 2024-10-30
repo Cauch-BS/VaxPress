@@ -31,25 +31,29 @@ import numpy as np
 from . import lineardesign
 from .sequence import Sequence
 
-STOP = "*"
 MutationChoice = namedtuple("MutationChoice", ["pos", "altcodon"])
 
 
 class MutantGenerator(Sequence):
 
-    cdsseq: Union[str, list[str]] = []
+    rawseq: Union[str, list[str]] = []
     initial_codons: list = []
 
     def __init__(
         self,
-        cdsseq: Union[str, list],
+        rawseq: Union[str, list],
         random_state: np.random.RandomState,
         codon_table: str = "standard",
         is_protein: bool = False,
-        is_cds=True,
+        cdsseq: str = "",
+        utr5: str = "",
+        utr3: str = "",
+        preserve_stop: bool = False,
         boost_loop_mutations: str = None,  # type: ignore[assignment]
     ):
-        super().__init__(cdsseq, codon_table, is_protein, is_cds)
+        super().__init__(
+            rawseq, codon_table, is_protein, cdsseq, utr5, utr3, preserve_stop
+        )
         self.rand = np.random if random_state is None else random_state
 
         if boost_loop_mutations is not None:
@@ -57,6 +61,7 @@ class MutantGenerator(Sequence):
             (self.boost_loop_mutations_weight, self.boost_loop_mutations_start) = float(
                 tokens[0]
             ), int(tokens[1])
+
         else:
             self.boost_loop_mutations_weight = 0
 
