@@ -3,6 +3,8 @@
 
 *Written On*: 2024-09-27
 
+*Last Updated*: 2024-10-30
+
 > [!IMPORTANT]
 This changelog was written *after the fact*, and as such it might contain certain errors. Please refer to the actual commit history for the most accurate information.
 
