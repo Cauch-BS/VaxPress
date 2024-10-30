@@ -88,7 +88,7 @@ class Sequence:
 
     @staticmethod
     def truncate(
-        rawseq: str | list[str], preserve_stop: bool = False
+        rawseq: Union[str, list[str]], preserve_stop: bool = False
     ) -> tuple[str, str, list[str], str]:
         if isinstance(rawseq, list):
             rawseq = "".join(rawseq)
