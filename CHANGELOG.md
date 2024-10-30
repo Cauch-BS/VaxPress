@@ -28,4 +28,9 @@ Redundant commits are omitted from the list below. (e.g. the commit @ `2024/06/2
 | 2024/09/04 ~ 2024/09/04 | bc7c576 | Add Support for Multiple Starting Points cf) Jisu Lim |
 | 2024/09/20 ~ 2024/09/26 | b363bdd | Add Support for Google Cloud |
 | 2024/09/27 ~ 2024/09/27 | 9eec10f | Add Support for Github Actions | 
-
+| 2024 10/02 ~ 2024/10 03 |  47df81d | Minor Patches for Google Cloud Setup |
+| 2024/10/10 ~ 2024/10/15 |  | Add Support for Modded LinearDesign | 
+| 2024/10/04 ~ 2024/10/15 | 85d1f1l | Add Support for VaxiFold |
+| 2024/10/15 ~ 2024/10/23 | a454d1b | Update configuration for flexible updates | 
+| 2024/10/23 ~ 2024/10/24 | fc4a22a | Add Support for Restriction Sites |
+| 2024/10/25 ~ 2024/10/30 | 7a49971 | Add Support for Separate UTR File (Compatibility with LinearDesign) |
