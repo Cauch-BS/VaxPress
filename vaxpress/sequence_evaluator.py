@@ -40,19 +40,17 @@ from .log import hbar_stars, log
 class ParseStructure:
 
     def __init__(self):
-        self.pat_find_loops = re.compile(r"\.{2,}")
+        self.pat_find_loops = re.compile(r"[.,]{2,}")
 
     @staticmethod
     def find_stems(structure):
         stack = []
         stemgroups = []
-        parse_vienna = str.maketrans(r"{,}", "(.)")
-        structure = structure.translate(parse_vienna)
         for i, s in enumerate(structure):
-            if s == "(":
+            if s in ["(", "{"]:
                 stack.append(i)
-            elif s == ")":
-                assert len(stack) >= 1
+            elif s in [")", "}"]:
+                assert len(stack) >= 1, f"{structure} is not a valid structure."
                 peer = stack.pop()
                 if (
                     stemgroups
@@ -110,12 +108,12 @@ class ParseStructure:
         for _, folding in zip(seqs, foldings):
             # NOTE: free_energy is actually the EFE, but we use it as MFE for now.
             folding["mfe"] = folding["free_energy"]
-            mfe_str = folding["structure"]
-            stems = self.find_stems(mfe_str)
-            mfe_str, stems = self.unfold_unstable_structure(mfe_str, stems)
-            loops = dict(Counter(map(len, self.pat_find_loops.findall(mfe_str))))
+            second_str = folding["structure"]
+            stems = self.find_stems(second_str)
+            second_str, stems = self.unfold_unstable_structure(second_str, stems)
+            loops = dict(Counter(map(len, self.pat_find_loops.findall(second_str))))
 
-            folding["folding"] = mfe_str
+            folding["folding"] = second_str
             folding["stems"] = stems
             folding["loops"] = loops
 
@@ -159,6 +157,8 @@ class SequenceEvaluator:
         self.mutantgen = mutantgen
         self.species = species
 
+        self.is_modified = execopts.is_modified
+
         self.quiet = quiet
         self.use_fold = True
         self.foldeval = ParseStructure()
@@ -180,7 +180,7 @@ class SequenceEvaluator:
         try:
             self.initialize_remote()
         except Exception as exc:
-            log.info(f"Error occurred in initializing remote: {exc}")
+            log.info(f"Could not initialize remote: {exc}")
             log.info("Falling back to local evaluation.")
             self.initialize_local()
 
@@ -228,7 +228,6 @@ class SequenceEvaluator:
             self.penalty_metric_flags.update(cls.penalty_metric_flags)
 
     def initialize_remote(self):
-
         host = self.host
         port = self.port
         user = self.user
@@ -268,9 +267,14 @@ class SequenceEvaluator:
         )
 
     def find_fitness(
-        self, seqs, executor, lineardesign_penalty=None, lineardesign_penalty_weight=1.0
+        self,
+        seqs,
+        is_modified,
+        executor,
+        lineardesign_penalty=None,
+        lineardesign_penalty_weight=1.0,
     ):
-        with FitnessEvaluationSession(self, seqs, executor) as f_sess:
+        with FitnessEvaluationSession(self, seqs, is_modified, executor) as f_sess:
             f_sess.evaluate(lineardesign_penalty, lineardesign_penalty_weight)
             if not f_sess.errors:
                 total_scores = []
@@ -291,8 +295,8 @@ class SequenceEvaluator:
         try:
             async with self.vaxifold:
                 if self.use_fold:
-                    mfe_foldings = await self.vaxifold.fold([seq])
-                pf_foldings = await self.vaxifold.partition([seq])
+                    mfe_foldings = await self.vaxifold.fold([seq], mod=self.is_modified)
+                pf_foldings = await self.vaxifold.partition([seq], mod=self.is_modified)
         except Exception as exc:
             log.error(f"Error occurred in folding: {exc}")
 
@@ -350,9 +354,14 @@ class SequenceEvaluator:
 class FitnessEvaluationSession:
 
     def __init__(
-        self, evaluator: SequenceEvaluator, seqs: list[str], executor: futures.Executor
+        self,
+        evaluator: SequenceEvaluator,
+        seqs: list[str],
+        is_modified: bool,
+        executor: futures.Executor,
     ):
         self.seqs = seqs
+        self.is_modified = is_modified
         self.executor = executor
 
         self.scores: list[dict] = [{} for _ in range(len(seqs))]
@@ -454,10 +463,14 @@ class FitnessEvaluationSession:
         try:
             async with self.vaxifold:
                 if self.scorefuncs_folding:
-                    self.mfe_foldings = await self.vaxifold.fold(new_seqs, executor)
+                    self.mfe_foldings = await self.vaxifold.fold(
+                        new_seqs, self.is_modified, executor
+                    )
                 else:
                     self.mfe_foldings = None
-                self.pf_foldings = await self.vaxifold.partition(new_seqs, executor)
+                self.pf_foldings = await self.vaxifold.partition(
+                    new_seqs, self.is_modified, executor
+                )
         except Exception as exc:
             return self.handle_exception(exc)
 

@@ -290,6 +290,12 @@ def parse_options(scoring_funcs, preset, default_off):
         "Should be used with --cds or --input with or without --protein"
         "Shoud have identical descriptions to --cds or --input",
     )
+    grp.add_argument(
+        "--m1psi",
+        default=False,
+        action="store_true",
+        help="use m1Ψ modification for the input sequence",
+    )
 
     grp = parser.add_argument_group("Execution Options")
     grp.add_argument(
@@ -555,8 +561,8 @@ def run_vaxpress():
 
     initialize_outputdir(args.output, args.overwrite)
     initialize_logging(os.path.join(args.output, "log.txt"), args.quiet)
-    if args.input:
-        inputseqs = to_dict(SeqIO.parse(args.input, "fasta"))
+    if args.full:
+        inputseqs = to_dict(SeqIO.parse(args.full, "fasta"))
         seqdescr = list(inputseqs.keys())[0]
         rawseqs = [str(inputseqelem.seq) for inputseqelem in inputseqs.values()]
         cdsseqs = ["" for _ in rawseqs]
@@ -611,6 +617,7 @@ def run_vaxpress():
         seq_description=seqdescr,
         print_top_mutants=args.print_top,
         protein=args.protein,
+        is_modified=args.m1psi,
         preserve_stop=args.preserve_stop,
         addons=addon_paths,
         lineardesign_dir=args.lineardesign_dir,
@@ -661,7 +668,7 @@ def run_vaxpress():
                     evochamber.metainfo,
                     scoring_options,
                     execution_options,
-                    rawseqs[0] if args.input else utr5s[0] + cdsseqs[0] + utr3s[0],
+                    rawseqs[0] if args.full else utr5s[0] + cdsseqs[0] + utr3s[0],
                     evochamber.bestseq,
                     scoring_funcs,
                 )

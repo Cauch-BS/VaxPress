@@ -8,6 +8,7 @@ from tqdm.asyncio import tqdm_asyncio as atqdm  # type: ignore
 
 from concurrent.futures import Executor, ProcessPoolExecutor
 from importlib.metadata import version
+from .data.thermodynamics import M1PSI_PARAMS
 
 
 class LocalVaxiFold:
@@ -22,7 +23,12 @@ class LocalVaxiFold:
     async def __aexit__(self, exc_type, exc_value, traceback):
         pass
 
-    async def fold(self, seqs, executor: Executor = None):  # type: ignore[assignment]
+    async def fold(
+        self,
+        seqs,
+        mod: str = None,  # type: ignore[assignment]
+        executor: Executor = None,  # type: ignore[assignment]
+    ):
         executor = executor or ProcessPoolExecutor()
         if self.folding_engine == "viennarna":
             func = self.viennarna_fold
@@ -34,18 +40,23 @@ class LocalVaxiFold:
         total_tasks = len(seqs)
         progress_bar = atqdm(total=total_tasks, desc="Folding seqs", unit="requests")
 
-        async def fold_with_progress(seq):
-            result = await asyncio.wrap_future(executor.submit(func, seq))
+        async def fold_with_progress(seq, mod):
+            result = await asyncio.wrap_future(executor.submit(func, seq, mod))
             progress_bar.update(1)
             return result
 
-        tasks = [fold_with_progress(seq) for seq in seqs]
+        tasks = [fold_with_progress(seq, mod) for seq in seqs]
         results = await asyncio.gather(*tasks)
 
         progress_bar.close()
         return results
 
-    async def partition(self, seqs, executor: Executor = None):  # type: ignore[assignment]
+    async def partition(
+        self,
+        seqs,
+        mod: str = None,  # type: ignore[assignment]
+        executor: Executor = None,  # type: ignore[assignment]
+    ):
         executor = executor or ProcessPoolExecutor()
         if self.partition_engine == "viennarna":
             func = self.viennarna_partition
@@ -57,19 +68,19 @@ class LocalVaxiFold:
         total_tasks = len(seqs)
         progress_bar = atqdm(total=total_tasks, desc="Partition seqs", unit="requests")
 
-        async def partition_with_progress(seq):
-            result = await asyncio.wrap_future(executor.submit(func, seq))
+        async def partition_with_progress(seq, mod):
+            result = await asyncio.wrap_future(executor.submit(func, seq, mod))
             progress_bar.update(1)
             return result
 
-        tasks = [partition_with_progress(seq) for seq in seqs]
+        tasks = [partition_with_progress(seq, mod) for seq in seqs]
         results = await asyncio.gather(*tasks)
 
         progress_bar.close()
         return results
 
     @staticmethod
-    def viennarna_fold(seq):
+    def viennarna_fold(seq, mod=None):
         try:
             import ViennaRNA as RNA  # type: ignore
         except ImportError:
@@ -77,12 +88,20 @@ class LocalVaxiFold:
                 "ViennaRNA is not installed. \n try: `pip install ViennaRNA`"
             )
         assert version("ViennaRNA") >= "2.4.0", "ViennaRNA version >= 2.4.0 is required"
+        if not mod:
+            struct, mfe = RNA.fold(seq)
+            return {"structure": struct, "free_energy": mfe}
 
-        struct, mfe = RNA.fold(seq)
+        fc = RNA.fold_compound(seq)
+        fc.sc_mod(
+            params=M1PSI_PARAMS,
+            modification_sites=[i for i in range(1, len(seq) + 1) if seq[i - 1] == "U"],
+        )
+        struct, mfe = fc.mfe()
         return {"structure": struct, "free_energy": mfe}
 
     @staticmethod
-    def linearfold(seq):
+    def linearfold(seq, mod=None):
         try:
             import linearfold  # type: ignore
         except ImportError:
@@ -92,12 +111,13 @@ class LocalVaxiFold:
         assert (
             version("linearfold-unofficial") >= "0.1"
         ), "LinearFold version >= 0.1 is required"
-
+        if mod:
+            raise NotImplementedError("LinearFold does not support modifications")
         struct, mfe = linearfold.fold(seq)
         return {"structure": struct, "free_energy": mfe}
 
     @staticmethod
-    def viennarna_partition(seq):
+    def viennarna_partition(seq, mod=None):
         try:
             import ViennaRNA as RNA  # type: ignore
         except ImportError:
@@ -107,7 +127,15 @@ class LocalVaxiFold:
         assert version("ViennaRNA") >= "2.4.0", "ViennaRNA version >= 2.4.0 is required"
 
         fc = RNA.fold_compound(seq)
-        fold, fe = fc.pf()
+        if mod:
+            fc.sc_mod(
+                params=M1PSI_PARAMS,
+                modification_sites=[
+                    i for i in range(1, len(seq) + 1) if seq[i - 1] == "U"
+                ],
+            )
+        _, fe = fc.pf()
+        fold, _ = fc.MEA()
         bpp = np.array(fc.bpp())[1:, 1:]
         pi_array = np.sum(bpp + bpp.T, axis=0)
         del bpp
@@ -120,7 +148,7 @@ class LocalVaxiFold:
         return results
 
     @staticmethod
-    def linearpartition(seq):
+    def linearpartition(seq, mod=None):
         try:
             import linearpartition  # type: ignore
         except ImportError:
@@ -130,7 +158,8 @@ class LocalVaxiFold:
         assert (
             version("linearpartition-unofficial") >= "0.3"
         ), "LinearPartition version >= 0.3 is required"
-
+        if mod:
+            raise NotImplementedError("LinearPartition does not support modifications")
         pred = linearpartition.partition(seq)
         results = {
             "structure": pred["structure"],

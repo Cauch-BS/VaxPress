@@ -65,6 +65,7 @@ ExecutionOptions = namedtuple(
         "species",
         "codon_table",
         "protein",
+        "is_modified",
         "preserve_stop",
         "quiet",
         "seq_description",
@@ -356,6 +357,7 @@ class CDSEvolutionChamber:
                 self.flatten_seqs = ["".join(seq) for seq in self.population]
                 total_scores, scores, metrics, foldings = self.seqeval.find_fitness(
                     self.flatten_seqs,
+                    self.execopts.is_modified,
                     executor,
                     self.execopts.lineardesign_penalty,
                     self.execopts.lineardesign_penalty_weight,
@@ -379,6 +381,7 @@ class CDSEvolutionChamber:
 
                 total_scores, scores, metrics, foldings = self.seqeval.find_fitness(
                     self.flatten_seqs,
+                    self.execopts.is_modified,
                     executor,
                     self.execopts.lineardesign_penalty,
                     self.execopts.lineardesign_penalty_weight,
