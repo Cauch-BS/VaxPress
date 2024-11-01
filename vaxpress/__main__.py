@@ -256,11 +256,11 @@ def parse_options(scoring_funcs, preset, default_off):
 
     grp = parser.add_argument_group("Input Sequence options")
     grp.add_argument(
-        "-i",
-        "--input",
+        "-f",
+        "--full",
         default="",
         metavar="FILE",
-        help="input fasta file containing the entire raw sequence (CDS, CDS + or Protein)",
+        help="input fasta file containing the entire raw RNA sequence",
     )
     grp.add_argument(
         "--protein",
