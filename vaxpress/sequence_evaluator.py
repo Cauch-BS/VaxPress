@@ -46,7 +46,8 @@ class ParseStructure:
     def find_stems(structure):
         stack = []
         stemgroups = []
-
+        parse_vienna = str.maketrans(r"{,}", "(.)")
+        structure = structure.translate(parse_vienna)
         for i, s in enumerate(structure):
             if s == "(":
                 stack.append(i)
