@@ -59,10 +59,9 @@ class OverallRepeatsFitness(ScoringFunction):
 
     penalty_metric_flags = {"orepeat": "or"}
 
-    def __init__(self, weight, min_repeats, min_length, _length_cds):
+    def __init__(self, weight, min_repeat_length, _length_cds):
         self.weight = weight
-        self.min_repeats = min_repeats
-        self.min_length = min_length
+        self.min_repeat_length = min_repeat_length
         self.reverse = str.maketrans("ACGT", "TGCA")
 
     def reverse_complement(self, seq):
@@ -94,7 +93,7 @@ class OverallRepeatsFitness(ScoringFunction):
         rep_percent = []
         for seq in seqs:
             seq = seq[: -Sequence(seq).get_polyA()]
-            repeats = self.scan_repeats(seq, self.min_length)
+            repeats = self.scan_repeats(seq, self.min_repeat_length)
             rep_percent.append(repeats)
 
         repeat_score = [per * self.weight for per in rep_percent]
