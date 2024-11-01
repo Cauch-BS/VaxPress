@@ -101,3 +101,8 @@ class PairingProbFitness(ScoringFunction):
         weighted_aup = np.dot(xi, wi) / np.sum(wi)
         weighted_aup_val = weighted_aup.item()
         return {"aup": weighted_aup_val}
+
+    def evaluate_local(self, seq, folding):
+        xi_array = 1 - folding["pi_array"]
+        baseindex = list(range(len(seq)))
+        return {"gc": (baseindex, xi_array)}

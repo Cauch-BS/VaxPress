@@ -4,7 +4,6 @@ import uuid
 import asyncio
 from struct import unpack
 import numpy as np
-from scipy import sparse  # type: ignore
 from tqdm.asyncio import tqdm_asyncio as atqdm  # type: ignore
 
 from concurrent.futures import Executor, ProcessPoolExecutor
@@ -137,15 +136,14 @@ class LocalVaxiFold:
             "structure": pred["structure"],
             "free_energy": pred["free_energy"],
         }
-        base_pair_i = pred["bpp"]["i"]
-        base_pair_j = pred["bpp"]["j"]
-        base_pair_prob = pred["bpp"]["prob"]
-        pi_array_matrix = sparse.coo_array(
-            (base_pair_prob, (base_pair_i, base_pair_j)), shape=(len(seq), len(seq))
-        )
-        pi_array = np.sum(pi_array_matrix + pi_array_matrix.T, axis=0)
+        probbypos = np.zeros(len(seq), dtype=np.float64)
+
+        probbypos[pred["bpp"]["i"]] = pred["bpp"]["prob"]
+        probbypos[pred["bpp"]["j"]] += pred["bpp"]["prob"]
+        pi_array = probbypos.clip(0, 1)
         results["pi_array"] = pi_array
 
+        del pred
         return results
 
 
@@ -237,14 +235,15 @@ class AsyncVaxiFoldClient:
             "free_energy": free_energy,
         }
         bpp = np.frombuffer(response[12 + seqlen :], dtype=bp_dtype)
-        base_pair_i = bpp["i"]
-        base_pair_j = bpp["j"]
-        base_pair_prob = bpp["prob"]
-        pi_array_matrix = sparse.coo_matrix(
-            (base_pair_prob, (base_pair_i, base_pair_j)), shape=(seqlen, seqlen)
-        )
-        pi_array = np.sum(pi_array_matrix + pi_array_matrix.T, axis=0)
+        probbypos = np.zeros(seqlen, dtype=np.float64)
+        probbypos[bpp["i"]] = bpp["prob"]
+        probbypos[bpp["j"]] += bpp["prob"]
+        pi_array = probbypos.clip(0, 1)
+
         results["pi_array"] = pi_array
+
+        del bpp
+
         return results
 
     async def call_rpc(self, payloads, loop):
