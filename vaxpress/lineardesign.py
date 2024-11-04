@@ -68,6 +68,7 @@ def run_lineardesign(
     sequence,
     penalty_region,
     lmd=0.5,
+    utr3="",
     quiet=False,
     codonusage="codon_usage_freq_table_human.csv",
 ):
@@ -89,6 +90,19 @@ def run_lineardesign(
     penalty_mode = "0"
     if penalty_region != "":
         penalty_mode = "1"
+    dfa_path = ""
+    original_seq = sequence
+    if utr3 != "":
+        dfa_path = "dfa.txt"
+        dfa_path = os.path.abspath(dfa_path)
+        sp.run(f"dfa-gen {sequence} -l {lmd} -u {utr3} > {dfa_path}", shell=True)
+
+        with open(dfa_path, "r") as file:
+            lines = file.readlines()
+            cds_utr3 = lines[2].strip()
+        sequence = cds_utr3
+    print(sequence)
+
     # with sp.Popen([lineardesign_bin, str(lmd), '0', codonusage],
     with sp.Popen(
         [
@@ -96,7 +110,7 @@ def run_lineardesign(
             str(lmd),
             "0",
             codonusage,
-            "",
+            dfa_path,
             penalty_mode,
             penalty_region,
             "0",
@@ -131,6 +145,13 @@ def run_lineardesign(
     mfe = float(lines[2].split(": ")[1].split()[0])
     cai = float(lines[3].split(": ")[1].strip()[0])
 
+    # rnaseq = rnaseq[0 : len(original_seq) * 3] + utr3
+    rnaseq = rnaseq[0 : len(original_seq) * 3]
+    # if len(rnaseq) > len(rnastr):
+    # rnastr = rnastr + "." * (len(rnaseq) - len(rnastr))
+    rnastr = rnastr[0 : len(original_seq) * 3]
+
+    # print(rnaseq)
     return {
         "seq": rnaseq,
         "str": rnastr,

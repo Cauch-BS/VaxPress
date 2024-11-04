@@ -68,9 +68,9 @@ class StartCodonStructureFitness(ScoringFunction):
     def score(self, seqs: str, foldings: dict = None):  # type: ignore[assignment]
         metrics = []
         scores = []
-        start_at = len(Sequence(seqs[0], is_cds=False).utr5)
         if foldings:
-            for fold in foldings:
+            for seq, fold in zip(seqs, foldings):
+                start_at = len(Sequence(rawseq=seq).utr5)
                 start_structure = fold["folding"][start_at : (start_at + self.width)]
 
                 start_folded = start_structure.count("(") + start_structure.count(")")

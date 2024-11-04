@@ -162,6 +162,8 @@ class CDSEvolutionChamber:
         ]
         self.mutantgen = self.mutantall[0]
 
+        print(self.mutantgen.utr5)
+        print(self.mutantgen.utr3)
         if self.execopts.lineardesign_lambda is not None:
             log.info("==> Initializing sequence with LinearDesign...")
             self.mutantgen.lineardesign_initial_codons(
@@ -169,6 +171,7 @@ class CDSEvolutionChamber:
                 self.execopts.lineardesign_dir,
                 self.execopts.lineardesign_omit_start,
                 self.execopts.lineardesign_penalty,
+                self.mutantgen.utr3,
                 self.quiet,
             )
         elif self.execopts.random_initialization or self.execopts.protein:
