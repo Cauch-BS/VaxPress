@@ -72,7 +72,7 @@ class ReportPlotsMixin:
     seq = args = status = scoreopts = execopts = None
     checkpoints = None
 
-    default_panel_height = [0, 400, 600, 700, 1200]  # by number of panels
+    default_panel_height = [0, 400, 600, 900, 1200, 1500, 1800]  # by number of panels
 
     def plot_fitness_curve(self, skip_initial=False):
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05)

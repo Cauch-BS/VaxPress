@@ -104,5 +104,6 @@ class PairingProbFitness(ScoringFunction):
 
     def evaluate_local(self, seq, folding):
         xi_array = 1 - folding["pi_array"]
+        # moving average of xi_array
         baseindex = list(range(len(seq)))
         return {"aup": (baseindex, xi_array)}

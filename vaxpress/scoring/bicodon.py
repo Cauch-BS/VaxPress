@@ -86,3 +86,10 @@ class BicodonAdaptationIndexFitness(ScoringFunction):
         bcai_score = bcai * self.weight
 
         return {"bicodon": bcai_score}, {"bicodon": bcai}
+
+    def evaluate_local(self, seq):
+        scores = self.bicodon_scores
+        seq = Sequence(seq).cdsseq
+        bcai = np.array([scores[seq[i : i + 6]] for i in range(0, len(seq) - 3, 3)])
+        centers = np.arange(0, len(seq) - 3, 3)
+        return {"bcai": (centers, bcai)}
