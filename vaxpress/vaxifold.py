@@ -166,9 +166,8 @@ class LocalVaxiFold:
             "free_energy": pred["free_energy"],
         }
         probbypos = np.zeros(len(seq), dtype=np.float64)
-
-        probbypos[pred["bpp"]["i"]] = pred["bpp"]["prob"]
-        probbypos[pred["bpp"]["j"]] += pred["bpp"]["prob"]
+        np.add.at(probbypos, pred["bpp"]["i"], pred["bpp"]["prob"])
+        np.add.at(probbypos, pred["bpp"]["j"], pred["bpp"]["prob"])
         pi_array = probbypos.clip(0, 1)
         results["pi_array"] = pi_array
 
